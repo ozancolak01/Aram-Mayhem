@@ -1067,6 +1067,7 @@
     </div>
 
     <div class="flex items-center gap-1 pl-1 md:pl-2 border-l border-[#3c3c41]">
+      <span id="hudNetBadge" class="hidden px-1.5 py-0.5 bg-[#091428] border border-[#0ac8b9]/50 text-[9px] font-mono font-bold text-[#0ac8b9]" title="Sunucu İletişim Sağlığı ve Gecikme (RTT)">12ms</span>
       <button id="hudTopShopBtn" onclick="toggleShopModal()" class="py-0.5 px-2 bg-gradient-to-b from-[#c89b3c] to-[#785a28] border border-[#f0e6d2] text-[#010a13] font-mono font-black text-[10px] cursor-pointer" title="Eşya Dükkânı (P veya B)">DÜKKÂN</button>
       <button id="hudControlModeBtn" onclick="cycleControlScheme()" class="hidden">PC: LoL Tık</button>
       <button id="hudZoomBtn" onclick="cycleWorldZoom()" class="hex-btn px-1.5 py-0.5 text-[10px] text-[#0ac8b9]" title="Kamera Yakınlaştırma (Mouse Tekerleği)">Görüş</button>
@@ -2570,7 +2571,7 @@ function createChamp(team, idx, specId, isPlayer = false, customName = null, dSp
     burnOwner: -1, bleedOwner: -1, deathMarkOwner: -1, sunlightOwner: -1, permBonusHp: 0,
     inBush: false, stealthTimer: 0, revealTimer: 0,
     stunTimer: 0, rootTimer: 0, slowTimer: 0, slowFactor: 0,
-    invulnTimer: 1.0, dead: false, respawnTimer: 0,
+    invulnTimer: 1.0, dead: false, respawnTimer: 0, lifeEpoch: 1,
     leftFountain: false, canShop: true,
     items: [], augments: [], pendingAugmentPhases: [3], augRerolls: 2,
     quest: null, monarch: false,
@@ -3385,12 +3386,18 @@ function handleStructureDestroyed(st, killer) {
 }
 
 function handleChampKilled(victim, killer) {
+  if (victim.dead) return;
   victim.dead = true;
   victim.hp = 0;
+  victim.lifeEpoch = (victim.lifeEpoch || 1) + 1;
+  victim.netX = undefined;
+  victim.netY = undefined;
   victim.respawnTimer = Math.min(18, 5 + Math.floor(victim.level * 0.55));
   victim.deaths++;
   victim.canShop = true; // Can shop while dead in ARAM!
   victim.attackTarget = null;
+  victim.targetX = victim.spawnX;
+  victim.targetY = victim.spawnY;
   screenShake = Math.max(screenShake, 12);
   addParticles(victim.x, victim.y, victim.color, 24, 190, 4.5);
   SFX.kill();
@@ -3517,6 +3524,11 @@ function handleChampKilled(victim, killer) {
 function performAutoAttack(idx, target) {
   const c = G.champions[idx];
   if (!c || c.dead || c.stunTimer > 0 || c.atkTimer > 0) return;
+  if (lanConnected && isLanHost && !c.isPlayer && !window._applyingRemoteAction && target) {
+    const tType = target.level !== undefined ? 'champ' : (target.type === 'turret' || target.type === 'inhibitor' || target.type === 'nexus') ? 'structure' : 'minion';
+    const tId = tType === 'champ' ? target.idx : target.id;
+    sendWs({ type: 'player_action', champIdx: idx, fromBot: true, action: { kind: 'bot_auto', targetType: tType, targetId: tId } });
+  }
   const ang = angle(c.x, c.y, target.x, target.y);
   c.facing = ang;
   c.animSwing = 0.25;
@@ -3672,6 +3684,9 @@ function performAutoAttack(idx, target) {
 function castAbility(idx, key, mx, my) {
   const c = G.champions[idx];
   if (!c || c.dead || c.stunTimer > 0) return;
+  if (lanConnected && isLanHost && !c.isPlayer && !window._applyingRemoteAction) {
+    sendWs({ type: 'player_action', champIdx: idx, fromBot: true, action: { kind: 'cast', key, mx: Math.round(mx), my: Math.round(my) } });
+  }
   const spec = CHAMP_SPECS[c.specId];
   const baseAng = angle(c.x, c.y, mx, my);
 
@@ -4756,6 +4771,9 @@ function castAbility(idx, key, mx, my) {
 function castSummonerSpell(idx, slotKey, mx, my) {
   const c = G.champions[idx];
   if (!c || c.dead) return;
+  if (lanConnected && isLanHost && !c.isPlayer && !window._applyingRemoteAction) {
+    sendWs({ type: 'player_action', champIdx: idx, fromBot: true, action: { kind: 'summoner', slot: slotKey, mx: Math.round(mx), my: Math.round(my) } });
+  }
   const isD = (slotKey === 'D');
   const spellId = isD ? c.spellD : c.spellF;
   const timerProp = isD ? 'dTimer' : 'fTimer';
@@ -5297,18 +5315,26 @@ function updateGame(dt) {
   for (let i = 0; i < G.champions.length; i++) {
     const c = G.champions[i];
     if (c.dead) {
-      c.respawnTimer -= dt;
-      if (c.respawnTimer <= 0) {
-        c.dead = false;
-        c.hp = c.maxHp; c.mana = c.maxMana;
-        c.x = c.spawnX; c.y = c.spawnY;
-        c.targetX = c.spawnX; c.targetY = c.spawnY;
-        c.leftFountain = false; c.canShop = true;
-        c.invulnTimer = 1.5; c.stunTimer = 0; c.rootTimer = 0;
-        if (!c.isPlayer) aiAutoBuyAndAugment(c);
-        if (c.isLocalMe && c.pendingAugmentPhases.length > 0) {
-          openAugmentModal();
+      if (!lanConnected || isLanHost) {
+        c.respawnTimer -= dt;
+        if (c.respawnTimer <= 0) {
+          c.dead = false;
+          c.lifeEpoch = (c.lifeEpoch || 1) + 1;
+          c.netX = undefined;
+          c.netY = undefined;
+          c.hp = c.maxHp; c.mana = c.maxMana;
+          c.x = c.spawnX; c.y = c.spawnY;
+          c.targetX = c.spawnX; c.targetY = c.spawnY;
+          c.attackTarget = null;
+          c.leftFountain = false; c.canShop = true;
+          c.invulnTimer = 1.5; c.stunTimer = 0; c.rootTimer = 0;
+          if (!c.isPlayer) aiAutoBuyAndAugment(c);
+          if (c.isLocalMe && c.pendingAugmentPhases.length > 0) {
+            openAugmentModal();
+          }
         }
+      } else {
+        c.respawnTimer = Math.max(0, c.respawnTimer - dt);
       }
       continue;
     }
@@ -7294,6 +7320,34 @@ function handleLanMessage(msg) {
     if (inGame) returnToLobby();
     showAnnouncement('ODADAN ÇIKARILDIN', '#e84057', msg.reason || 'Oda kurucusu seni odadan çıkardı.');
     renderLobby();
+  } else if (msg.type === 'host_migrated') {
+    isLanHost = (msg.hostId === myPlayerId);
+    if (isLanHost && inGame) {
+      showAnnouncement('ODA KURUCUSU OLDUN', '#0ac8b9', 'Sunucu otoritesi kesintisiz olarak senin cihazına devredildi.');
+    }
+    if (!inGame) renderLobby();
+  } else if (msg.type === 'player_joined_match') {
+    if (G && G.champions && typeof msg.slotIdx === 'number' && G.champions[msg.slotIdx]) {
+      const ch = G.champions[msg.slotIdx];
+      ch.isPlayer = true;
+      ch.playerId = msg.playerId || -1;
+      ch.clientToken = msg.clientToken || null;
+      if (msg.name) ch.summonerName = msg.name;
+      ch.damageMultiplier = 1.12;
+      ch.botHpMult = 1.0;
+      ch.netX = undefined;
+      ch.netY = undefined;
+      ch.targetX = ch.x;
+      ch.targetY = ch.y;
+      ch.attackTarget = null;
+      recalcStats(ch);
+      if (msg.tookOverBot && msg.name) {
+        appendChatMessage('SİSTEM', `${msg.name} maça katıldı ve ${ch.name} kontrolünü devraldı!`, ch.team);
+      }
+      if (isLanHost) {
+        sendWs({ type: 'world_sync', snapshot: buildWorldSnapshot() });
+      }
+    }
   } else if (msg.type === 'player_left_match') {
     if (G && G.champions) {
       for (const ch of G.champions) {
@@ -7301,6 +7355,8 @@ function handleLanMessage(msg) {
           ch.isPlayer = false;
           ch.playerId = -1;
           ch.clientToken = null;
+          ch.netX = undefined;
+          ch.netY = undefined;
           const sp = CHAMP_SPECS[ch.specId] || CHAMP_SPECS.luxana;
           ch.summonerName = `${sp.name} Bot`;
           applyBotDifficultyProfile(ch, G.aiDiff || 'normal');
@@ -7311,15 +7367,23 @@ function handleLanMessage(msg) {
       }
     }
   } else if (msg.type === 'player_action') {
-    applyPlayerAction(msg.champIdx, msg.action);
+    window._applyingRemoteAction = true;
+    try {
+      applyPlayerAction(msg.champIdx, msg.action);
+    } finally {
+      window._applyingRemoteAction = false;
+    }
   } else if (msg.type === 'player_state' && G && msg.state) {
     const rc = G.champions[msg.champIdx];
     if (rc && msg.champIdx !== myChampIdx) {
-      rc.netX = msg.state.x;
-      rc.netY = msg.state.y;
-      rc.targetX = msg.state.targetX;
-      rc.targetY = msg.state.targetY;
-      rc.facing = msg.state.facing;
+      // Ignore stale position packets sent while dead or from an older lifeEpoch!
+      if (rc.dead) return;
+      if (typeof msg.state.lifeEpoch === 'number' && msg.state.lifeEpoch !== (rc.lifeEpoch || 1)) return;
+      rc.netX = clamp(Number(msg.state.x) || rc.x, 70, WORLD_W - 70);
+      rc.netY = clamp(Number(msg.state.y) || rc.y, BRIDGE_TOP + 22, BRIDGE_BOT - 22);
+      rc.targetX = clamp(Number(msg.state.targetX) || rc.targetX, 70, WORLD_W - 70);
+      rc.targetY = clamp(Number(msg.state.targetY) || rc.targetY, BRIDGE_TOP + 22, BRIDGE_BOT - 22);
+      if (typeof msg.state.facing === 'number') rc.facing = msg.state.facing;
     }
   } else if (msg.type === 'world_sync' && G && (!isLanHost || isSpectatorMode)) {
     applyWorldSync(msg.snapshot);
@@ -7338,9 +7402,20 @@ function applyPlayerAction(cIdx, act) {
   if (!G || !G.champions[cIdx]) return;
   const c = G.champions[cIdx];
   if (act.kind === 'move') {
+    if (c.dead) return;
     c.targetX = clamp(act.x, 70, WORLD_W - 70);
     c.targetY = clamp(act.y, BRIDGE_TOP + 22, BRIDGE_BOT - 22);
     c.attackTarget = null;
+  } else if (act.kind === 'bot_auto') {
+    if (c.dead) return;
+    let ent = null;
+    if (act.targetType === 'champ') ent = G.champions[act.targetId];
+    else if (act.targetType === 'minion') ent = G.minions.find(m => m.id === act.targetId);
+    else if (act.targetType === 'structure') ent = G.structures.find(s => s.id === act.targetId);
+    if (ent && !ent.dead) {
+      c.atkTimer = 0;
+      performAutoAttack(cIdx, ent);
+    }
   } else if (act.kind === 'attack_target') {
     c.attackTarget = { type: act.targetType, id: act.targetId };
   } else if (act.kind === 'stop') {
@@ -7434,18 +7509,34 @@ function applyPlayerAction(cIdx, act) {
   }
 }
 
+let lastWorldSyncSeq = 0;
+
 function buildWorldSnapshot() {
   if (!G) return null;
   return {
+    seq: ++lastWorldSyncSeq,
     time: G.time, blueKills: G.blueKills, redKills: G.redKills, winner: G.winner,
+    waveCount: G.waveCount, minionWaveTimer: G.minionWaveTimer,
     champions: G.champions.map(c => ({
       x: Math.round(c.x), y: Math.round(c.y), targetX: Math.round(c.targetX), targetY: Math.round(c.targetY),
+      facing: +(c.facing || 0).toFixed(2),
+      isPlayer: Boolean(c.isPlayer), playerId: c.playerId || -1, clientToken: c.clientToken || null,
+      summonerName: c.summonerName,
       hp: Math.round(c.hp), maxHp: c.maxHp, mana: Math.round(c.mana), maxMana: c.maxMana,
-      shield: Math.round(c.shield), level: c.level, xp: c.xp, nextXp: c.nextXp, gold: c.gold,
-      kills: c.kills, deaths: c.deaths, assists: c.assists, cs: c.cs, dead: c.dead, respawnTimer: c.respawnTimer
+      shield: Math.round(c.shield), level: c.level, xp: Math.round(c.xp), nextXp: c.nextXp, gold: Math.round(c.gold),
+      kills: c.kills, deaths: c.deaths, assists: c.assists, cs: c.cs, totalDmg: Math.round(c.totalDmg || 0),
+      dead: Boolean(c.dead), respawnTimer: +(c.respawnTimer || 0).toFixed(2), lifeEpoch: c.lifeEpoch || 1,
+      stunTimer: +(c.stunTimer || 0).toFixed(2), rootTimer: +(c.rootTimer || 0).toFixed(2)
     })),
     structures: G.structures.map(s => ({ id: s.id, hp: Math.round(s.hp), dead: s.dead, targetId: s.targetId, respawnTimer: s.respawnTimer })),
-    relics: G.relics.map(r => ({ id: r.id, active: r.active, timer: r.timer }))
+    relics: G.relics.map(r => ({ id: r.id, active: r.active, timer: r.timer })),
+    minions: G.minions.map(m => ({
+      id: m.id, team: m.team, type: m.type,
+      x: Math.round(m.x), y: Math.round(m.y),
+      hp: Math.round(m.hp), maxHp: m.maxHp,
+      dmg: m.dmg, range: m.range, speed: m.speed, r: m.r
+    })),
+    killFeed: killFeedList.slice(0, 5)
   };
 }
 
@@ -7454,23 +7545,108 @@ function applyWorldSync(snap) {
   G.time = snap.time;
   G.blueKills = snap.blueKills;
   G.redKills = snap.redKills;
+  if (typeof snap.waveCount === 'number') G.waveCount = snap.waveCount;
+  if (typeof snap.minionWaveTimer === 'number') G.minionWaveTimer = snap.minionWaveTimer;
   if (snap.winner && !G.winner) {
     G.winner = snap.winner;
     finishMatch();
+  }
+  if (Array.isArray(snap.killFeed) && snap.killFeed.length > 0) {
+    killFeedList = snap.killFeed;
   }
   if (snap.champions) {
     snap.champions.forEach((sc, i) => {
       const c = G.champions[i];
       if (!c) return;
-      if (i !== myChampIdx) {
-        c.netX = sc.x;
-        c.netY = sc.y;
-        c.targetX = sc.targetX;
-        c.targetY = sc.targetY;
-        c.hp = sc.hp; c.maxHp = sc.maxHp; c.mana = sc.mana; c.maxMana = sc.maxMana;
-        c.shield = sc.shield; c.level = sc.level; c.gold = sc.gold;
-        c.kills = sc.kills; c.deaths = sc.deaths; c.assists = sc.assists; c.cs = sc.cs;
-        c.dead = sc.dead; c.respawnTimer = sc.respawnTimer;
+      const wasDead = Boolean(c.dead);
+      const oldLevel = c.level;
+      const epochChanged = (typeof sc.lifeEpoch === 'number' && sc.lifeEpoch !== (c.lifeEpoch || 1));
+
+      // Sync player/bot ownership status in case a player joined or left mid-match
+      if (typeof sc.isPlayer === 'boolean') c.isPlayer = sc.isPlayer;
+      if (sc.summonerName) c.summonerName = sc.summonerName;
+      if (sc.clientToken !== undefined) c.clientToken = sc.clientToken;
+      if (sc.playerId !== undefined) c.playerId = sc.playerId;
+
+      // Authoritative combat & economy stats apply to ALL champions (including i === myChampIdx!)
+      c.hp = sc.hp;
+      c.maxHp = sc.maxHp;
+      c.mana = sc.mana;
+      c.maxMana = sc.maxMana;
+      c.shield = sc.shield;
+      c.level = sc.level;
+      if (typeof sc.xp === 'number') c.xp = sc.xp;
+      if (typeof sc.nextXp === 'number') c.nextXp = sc.nextXp;
+      c.gold = sc.gold;
+      c.kills = sc.kills;
+      c.deaths = sc.deaths;
+      c.assists = sc.assists;
+      c.cs = sc.cs;
+      if (typeof sc.totalDmg === 'number') c.totalDmg = sc.totalDmg;
+      c.dead = Boolean(sc.dead);
+      c.respawnTimer = sc.respawnTimer;
+      if (typeof sc.lifeEpoch === 'number') c.lifeEpoch = sc.lifeEpoch;
+
+      // Check level-up augment unlocks for local player when synced from Host
+      if (i === myChampIdx && c.level > oldLevel) {
+        recalcStats(c);
+        for (let lv = oldLevel + 1; lv <= c.level; lv++) {
+          if ([7, 11, 15].includes(lv) && !c.pendingAugmentPhases.includes(lv) && c.augments.length < 4) {
+            c.pendingAugmentPhases.push(lv);
+            SFX.augmentOpen();
+            showAnnouncement(`SEVİYE ${lv} — MAYHEM EKLENTİSİ HAZIR!`, '#e879f9', 'Sol üstteki Eklenti Örsüne tıkla veya doğunca seç!');
+          }
+        }
+      }
+
+      // Handle Death & Respawn state transitions cleanly for BOTH local and remote champions!
+      if (!wasDead && c.dead) {
+        // Champion just died on authoritative Host
+        c.netX = undefined;
+        c.netY = undefined;
+        c.attackTarget = null;
+        c.canShop = true;
+        c.targetX = c.spawnX;
+        c.targetY = c.spawnY;
+        addParticles(c.x, c.y, c.color, 20, 180, 4);
+        if (i === myChampIdx) {
+          SFX.kill();
+          screenShake = Math.max(screenShake, 10);
+        }
+      } else if ((wasDead && !c.dead) || (epochChanged && !c.dead)) {
+        // Champion just respawned at Fountain — snap to spawnX/spawnY and wipe stale netX/netY!
+        c.netX = undefined;
+        c.netY = undefined;
+        c.x = c.spawnX;
+        c.y = c.spawnY;
+        c.targetX = c.spawnX;
+        c.targetY = c.spawnY;
+        c.attackTarget = null;
+        c.leftFountain = false;
+        c.canShop = true;
+        c.invulnTimer = 1.5;
+        c.stunTimer = 0;
+        c.rootTimer = 0;
+        if (i === myChampIdx && c.pendingAugmentPhases.length > 0) {
+          openAugmentModal();
+        }
+      } else if (i !== myChampIdx) {
+        if (!c.dead) {
+          c.netX = sc.x;
+          c.netY = sc.y;
+          c.targetX = sc.targetX;
+          c.targetY = sc.targetY;
+          if (typeof sc.facing === 'number') c.facing = sc.facing;
+        }
+      } else if (i === myChampIdx && !c.dead) {
+        // For local player on Guest: only reconcile position if knocked/pulled/teleported or severely desynced (>340px)
+        const posDrift = dist(c.x, c.y, sc.x, sc.y);
+        if (posDrift > 340) {
+          c.x = sc.x;
+          c.y = sc.y;
+          c.targetX = sc.targetX;
+          c.targetY = sc.targetY;
+        }
       }
     });
   }
@@ -7478,6 +7654,32 @@ function applyWorldSync(snap) {
     snap.structures.forEach((ss, i) => {
       const st = G.structures[i];
       if (st) { st.hp = ss.hp; st.dead = ss.dead; st.targetId = ss.targetId; st.respawnTimer = ss.respawnTimer; }
+    });
+  }
+  if (snap.relics) {
+    snap.relics.forEach((sr, i) => {
+      const rl = G.relics[i];
+      if (rl) { rl.active = sr.active; rl.timer = sr.timer; }
+    });
+  }
+  if (Array.isArray(snap.minions)) {
+    const existingMap = new Map(G.minions.map(m => [m.id, m]));
+    G.minions = snap.minions.map(sm => {
+      const ex = existingMap.get(sm.id);
+      if (ex) {
+        ex.x = Math.round(ex.x * 0.4 + sm.x * 0.6);
+        ex.y = Math.round(ex.y * 0.4 + sm.y * 0.6);
+        ex.hp = sm.hp;
+        ex.maxHp = sm.maxHp;
+        ex.dead = false;
+        return ex;
+      }
+      return {
+        id: sm.id, team: sm.team, type: sm.type,
+        x: sm.x, y: sm.y, hp: sm.hp, maxHp: sm.maxHp,
+        dmg: sm.dmg || 24, range: sm.range || 75, speed: sm.speed || 164,
+        atkCd: 1.05, atkTimer: 0, r: sm.r || 12, dead: false
+      };
     });
   }
 }
@@ -7554,6 +7756,17 @@ function updateHudElements() {
   const mins = Math.floor(G.time / 60);
   const secs = Math.floor(G.time % 60);
   document.getElementById('hudTimer').textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  const netBadge = document.getElementById('hudNetBadge');
+  if (netBadge) {
+    if (lanConnected) {
+      netBadge.classList.remove('hidden');
+      const rtt = currentRttMs || 8;
+      netBadge.textContent = `${ isLanHost ? 'HOST' : 'SYNC' } • ${rtt}ms`;
+      netBadge.className = `px-1.5 py-0.5 bg-[#091428] border text-[9px] font-mono font-bold ${rtt < 65 ? 'border-[#10b981]/60 text-[#4ade80]' : rtt < 140 ? 'border-[#f59e0b]/60 text-[#fbbf24]' : 'border-[#e84057]/60 text-[#e84057]'}`;
+    } else {
+      netBadge.classList.add('hidden');
+    }
+  }
 
   const p = getMyChamp();
   if (!p) return;
@@ -9242,7 +9455,8 @@ window.onload = () => {
                   y: Math.round(me.y),
                   targetX: Math.round(me.targetX),
                   targetY: Math.round(me.targetY),
-                  facing: +(me.facing.toFixed(2))
+                  facing: +(me.facing.toFixed(2)),
+                  lifeEpoch: me.lifeEpoch || 1
                 }
               });
             }

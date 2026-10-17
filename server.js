@@ -1,12 +1,14 @@
 // ═══════════════════════════════════════════════════════════════════════════
-//  LEAGUE OF LEGENDS — ARAM: MAYHEM (PC & MOBILE MULTIPLAYER SERVER)
+//  LEAGUE OF LEGENDS — ARAM: MAYHEM (PRODUCTION-GRADE MULTIPLAYER SERVER)
 //  Zero-Dependency Node.js HTTP + RFC-6455 WebSocket Server
-//  3-Phase Architecture:
-//    1. 'lobby'        -> Custom Room Lobby (Host-only settings, Team switch, Ready)
-//    2. 'champ_select' -> 30s Timed Champion Select (Team-separated benches,
-//                         personal rerolls, Lock-In drops timer to 3s, auto-random)
-//    3. 'in_game'      -> Live Match (Auto-rejoin on refresh, Spectate / Bot takeover
-//                         for late visitors)
+//  Features:
+//    - TCP_NODELAY & Keep-Alive low-latency socket tuning
+//    - RFC-6455 multi-frame parser with 256KB max frame guard & backpressure safety
+//    - 3-Second Heartbeat Ping/Pong RTT tracker & 15-Second Dead-Peer Watchdog
+//    - Automatic Host Migration (seamless match continuation if Host drops)
+//    - Late-Join / Bot-Takeover synchronization ('player_joined_match' broadcast)
+//    - Slot-ownership validation & monotonic sequence numbering ('seq', 'srvTs')
+//    - Live '/health' JSON telemetry endpoint
 // ═══════════════════════════════════════════════════════════════════════════
 const http = require('http');
 const fs = require('fs');
@@ -16,6 +18,9 @@ const crypto = require('crypto');
 
 const PORT = process.env.PORT || 3000;
 const WS_MAGIC = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
+const MAX_FRAME_BYTES = 262144; // 256 KB safety cap per frame
+const HEARTBEAT_INTERVAL_MS = 3000;
+const PEER_TIMEOUT_MS = 15000;
 
 const ALL_CHAMP_IDS = [
   'luxana', 'yasu', 'jinxie', 'blitz', 'zedd', 'ahria',
@@ -30,13 +35,32 @@ class SimpleWebSocketClient {
     this.buffer = Buffer.alloc(0);
     this.onmessage = null;
     this.onclose = null;
+    this.onpong = null;
+
+    try {
+      socket.setNoDelay(true);
+      socket.setKeepAlive(true, 5000);
+    } catch (e) {}
 
     socket.on('data', chunk => {
+      if (this.readyState !== 1) return;
       this.buffer = Buffer.concat([this.buffer, chunk]);
+      if (this.buffer.length > MAX_FRAME_BYTES * 2) {
+        this.close();
+        return;
+      }
       this._parseFrames();
     });
-    socket.on('close', () => { this.readyState = 3; if (this.onclose) this.onclose(); });
-    socket.on('error', () => { this.readyState = 3; if (this.onclose) this.onclose(); });
+    socket.on('close', () => {
+      const wasOpen = this.readyState !== 3;
+      this.readyState = 3;
+      if (wasOpen && this.onclose) this.onclose();
+    });
+    socket.on('error', () => {
+      const wasOpen = this.readyState !== 3;
+      this.readyState = 3;
+      if (wasOpen && this.onclose) this.onclose();
+    });
   }
 
   _parseFrames() {
@@ -58,6 +82,11 @@ class SimpleWebSocketClient {
         offset = 10;
       }
 
+      if (payloadLen > MAX_FRAME_BYTES) {
+        this.close();
+        return;
+      }
+
       let maskKey = null;
       if (isMasked) {
         if (this.buffer.length < offset + 4) return;
@@ -67,7 +96,7 @@ class SimpleWebSocketClient {
 
       if (this.buffer.length < offset + payloadLen) return;
 
-      const payload = this.buffer.slice(offset, offset + payloadLen);
+      const payload = Buffer.from(this.buffer.slice(offset, offset + payloadLen));
       this.buffer = this.buffer.slice(offset + payloadLen);
 
       if (isMasked && maskKey) {
@@ -79,16 +108,25 @@ class SimpleWebSocketClient {
         return;
       } else if (opcode === 0x09) {
         this._sendFrame(0x0a, payload);
+      } else if (opcode === 0x0a) {
+        if (this.onpong) this.onpong();
       } else if (opcode === 0x01) {
         if (this.onmessage) this.onmessage(payload.toString('utf8'));
       }
     }
   }
 
-  send(data) {
-    if (this.readyState !== 1) return;
+  send(data, isVolatile = false) {
+    if (this.readyState !== 1 || !this.socket || this.socket.destroyed) return;
+    // Backpressure guard for high-frequency volatile state packets
+    if (isVolatile && this.socket.writableLength > 65536) return;
     const buf = Buffer.from(typeof data === 'string' ? data : JSON.stringify(data), 'utf8');
     this._sendFrame(0x01, buf);
+  }
+
+  ping() {
+    if (this.readyState !== 1) return;
+    this._sendFrame(0x09, Buffer.alloc(0));
   }
 
   _sendFrame(opcode, payload) {
@@ -112,8 +150,14 @@ class SimpleWebSocketClient {
 
   close() {
     if (this.readyState !== 3) {
+      const wasOpen = true;
       this.readyState = 3;
       try { this.socket.write(Buffer.from([0x88, 0x00])); this.socket.end(); } catch (e) {}
+      if (wasOpen && this.onclose) {
+        const cb = this.onclose;
+        this.onclose = null;
+        cb();
+      }
     }
   }
 }
@@ -131,6 +175,8 @@ function shuffleArray(arr) {
 const clients = new Map();
 const savedSessions = new Map();
 let nextPlayerId = 1;
+let serverSeq = 1;
+const serverStartTime = Date.now();
 
 let roomPhase = 'lobby'; // 'lobby' | 'champ_select' | 'in_game'
 let champSelectTimer = 30;
@@ -140,13 +186,13 @@ let blueBots = ['blitz', 'jinxie'];
 let redBots = ['daren', 'ahria', 'yasu'];
 let freePickMode = true;
 let aiDiff = 'normal';
-let activeMatch = null; // { aiDiff, slots, seed, latestSnapshot }
+let activeMatch = null; // { aiDiff, slots, seed, latestSnapshot, hostId }
 
-function broadcast(msgObj, excludeWs = null) {
+function broadcast(msgObj, excludeWs = null, isVolatile = false) {
   const raw = JSON.stringify(msgObj);
   for (const [ws] of clients) {
     if (ws !== excludeWs && ws.readyState === 1) {
-      ws.send(raw);
+      ws.send(raw, isVolatile);
     }
   }
 }
@@ -194,7 +240,8 @@ function broadcastLobbyState() {
     locked: Boolean(c.locked),
     rerolls: typeof c.rerolls === 'number' ? c.rerolls : 2,
     spellD: c.spellD,
-    spellF: c.spellF
+    spellF: c.spellF,
+    rtt: c.rtt || 0
   }));
 
   const hasOpenBotSlot = Boolean(
@@ -217,7 +264,7 @@ function broadcastLobbyState() {
     players,
     blueBench,
     redBench,
-    bench: blueBench, // legacy compatibility
+    bench: blueBench,
     blueBots,
     redBots,
     freePickMode,
@@ -225,47 +272,6 @@ function broadcastLobbyState() {
     matchInProgress: (roomPhase === 'in_game' && Boolean(activeMatch)),
     matchInfo
   });
-}
-
-
-function handleClientDisconnect(ws, client, isExplicitLeave = false) {
-  if (!clients.has(ws)) return;
-  if (!isExplicitLeave && client.clientToken) {
-    savedSessions.set(client.clientToken, {
-      id: client.id, name: client.name, champId: client.champId,
-      team: client.team, locked: client.locked, rerolls: client.rerolls,
-      spellD: client.spellD, spellF: client.spellF, lastSeen: Date.now()
-    });
-  } else if (isExplicitLeave && client.clientToken) {
-    savedSessions.delete(client.clientToken);
-  }
-  clients.delete(ws);
-
-  if (roomPhase === 'in_game' && activeMatch && Array.isArray(activeMatch.slots)) {
-    const slot = activeMatch.slots.find(
-      s => s.isHuman && ((client.clientToken && s.clientToken === client.clientToken) || s.playerId === client.id)
-    );
-    if (slot) {
-      slot.isHuman = false;
-      slot.playerId = -1;
-      slot.clientToken = null;
-      broadcast({
-        type: 'player_left_match',
-        playerId: client.id,
-        clientToken: client.clientToken,
-        name: client.name
-      });
-    }
-  }
-
-  const remainingHumans = getUniqueClients();
-  if (remainingHumans.length === 0) {
-    activeMatch = null;
-    roomPhase = 'lobby';
-  } else if (roomPhase === 'champ_select') {
-    checkAllLockedShortenTimer();
-  }
-  broadcastLobbyState();
 }
 
 function startChampSelectPhase() {
@@ -279,7 +285,6 @@ function startChampSelectPhase() {
   let ptr = 0;
 
   for (const c of clients.values()) {
-    // Assign every player a unique random starting champion (never everyone on Lux!)
     const assigned = shuffled[ptr % shuffled.length];
     ptr++;
     c.champId = assigned;
@@ -292,7 +297,6 @@ function startChampSelectPhase() {
     }
   }
 
-  // Ensure bots also have unique champions
   blueBots = blueBots.map(() => {
     const cid = pickUnusedChamp(usedChamps);
     usedChamps.add(cid);
@@ -322,7 +326,6 @@ function buildMatchSlots() {
   const uniqueClients = getUniqueClients();
   const used = new Set(uniqueClients.map(c => c.champId).filter(Boolean));
 
-  // Ensure anyone without a valid champId gets a unique random one
   uniqueClients.forEach(c => {
     if (!c.champId || !ALL_CHAMP_IDS.includes(c.champId)) {
       c.champId = pickUnusedChamp(used);
@@ -369,7 +372,7 @@ function launchMatchFromChampSelect() {
   roomPhase = 'in_game';
   const slots = buildMatchSlots();
   const seed = Math.floor(Math.random() * 900000000) + 100000000;
-  activeMatch = { aiDiff, slots, seed, latestSnapshot: null };
+  activeMatch = { aiDiff, slots, seed, latestSnapshot: null, hostId: getHostId() };
   for (const c of clients.values()) {
     c.ready = false;
     c.locked = false;
@@ -378,15 +381,59 @@ function launchMatchFromChampSelect() {
   broadcastLobbyState();
 }
 
-// Server-side 1-second ticker for Timed Champion Select
-setInterval(() => {
-  const now = Date.now();
-  for (const [wsClient, c] of [...clients.entries()]) {
-    if (c.lastPong && (now - c.lastPong > 9500)) {
-      handleClientDisconnect(wsClient, c, false);
-      wsClient.close();
+function handleClientDeparture(ws, client, reason = 'disconnect') {
+  if (!clients.has(ws)) return;
+  const oldHostId = getHostId();
+  if (client.clientToken) {
+    savedSessions.set(client.clientToken, {
+      id: client.id, name: client.name, champId: client.champId,
+      team: client.team, locked: client.locked, rerolls: client.rerolls,
+      spellD: client.spellD, spellF: client.spellF, lastSeen: Date.now()
+    });
+  }
+  clients.delete(ws);
+
+  const stillConnectedSameToken = client.clientToken && [...clients.values()].some(c => c.clientToken === client.clientToken);
+
+  if (!stillConnectedSameToken && activeMatch && Array.isArray(activeMatch.slots)) {
+    const slotIdx = activeMatch.slots.findIndex(
+      s => (s.clientToken && s.clientToken === client.clientToken) || (s.playerId && s.playerId === client.id)
+    );
+    if (slotIdx !== -1) {
+      const sl = activeMatch.slots[slotIdx];
+      sl.isHuman = false;
+      sl.playerId = -1;
+      sl.clientToken = null;
+      sl.name = null;
+      broadcast({
+        type: 'player_left_match',
+        slotIdx,
+        playerId: client.id,
+        clientToken: client.clientToken,
+        name: client.name,
+        reason
+      });
     }
   }
+
+  if (clients.size === 0) {
+    activeMatch = null;
+    roomPhase = 'lobby';
+  } else {
+    const newHostId = getHostId();
+    if (oldHostId !== newHostId) {
+      if (activeMatch) activeMatch.hostId = newHostId;
+      broadcast({ type: 'host_migrated', hostId: newHostId });
+    }
+    if (roomPhase === 'champ_select') {
+      checkAllLockedShortenTimer();
+    }
+  }
+  broadcastLobbyState();
+}
+
+// Server-side 1-second ticker for Timed Champion Select
+setInterval(() => {
   if (roomPhase === 'champ_select') {
     if (clients.size === 0) {
       roomPhase = 'lobby';
@@ -404,22 +451,39 @@ setInterval(() => {
   }
 }, 1000);
 
+// Production Watchdog: Ping all sockets every 3s & evict dead peers (>15s silence)
+setInterval(() => {
+  const now = Date.now();
+  for (const [ws, client] of [...clients.entries()]) {
+    if (now - (client.lastSeen || now) > PEER_TIMEOUT_MS) {
+      handleClientDeparture(ws, client, 'timeout');
+      ws.close();
+    } else {
+      ws.ping();
+    }
+  }
+}, HEARTBEAT_INTERVAL_MS);
+
 const server = http.createServer((req, res) => {
-  if (req.url === '/health' || req.url === '/api/status') {
+  if (req.url === '/health') {
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-cache' });
     res.end(JSON.stringify({
-      ok: true,
-      version: 'v9',
+      status: 'ok',
+      uptimeSec: Math.round((Date.now() - serverStartTime) / 1000),
       phase: roomPhase,
-      onlinePlayers: getUniqueClients().length,
-      matchInProgress: Boolean(roomPhase === 'in_game' && activeMatch)
+      connectedPlayers: getUniqueClients().length,
+      hostId: getHostId(),
+      matchInProgress: Boolean(activeMatch)
     }));
     return;
   }
+
   if (req.url === '/' || req.url.startsWith('/index.html') || req.url.startsWith('/?')) {
     const candidates = [
+      path.join(__dirname, 'aram_mayhem.html'),
       path.join(__dirname, 'public', 'index.html'),
       path.join(__dirname, 'index.html'),
+      path.join(process.cwd(), 'aram_mayhem.html'),
       path.join(process.cwd(), 'public', 'index.html'),
       path.join(process.cwd(), 'index.html')
     ];
@@ -466,15 +530,47 @@ server.on('upgrade', (req, socket) => {
     rerolls: 2,
     spellD: 'snowball',
     spellF: 'flash',
-    lastPong: Date.now(),
+    lastSeen: Date.now(),
     rtt: 0
   };
   clients.set(ws, client);
 
+  ws.onpong = () => {
+    client.lastSeen = Date.now();
+  };
+
   ws.onmessage = (raw) => {
+    client.lastSeen = Date.now();
     try {
       const msg = JSON.parse(raw);
       const isHost = (client.id === getHostId());
+
+      if (msg.type === 'ping_hb') {
+        if (typeof msg.rtt === 'number' && msg.rtt >= 0 && msg.rtt < 10000) {
+          client.rtt = Math.round(msg.rtt);
+        }
+        ws.send({ type: 'pong_hb', ts: msg.ts || Date.now(), srvTs: Date.now(), hostId: getHostId() });
+        return;
+      }
+
+      if (msg.type === 'leave_lobby') {
+        handleClientDeparture(ws, client, 'left');
+        ws.close();
+        return;
+      }
+
+      if (msg.type === 'kick_player') {
+        if (!isHost) return;
+        const targetId = Number(msg.targetId);
+        for (const [targetWs, targetClient] of [...clients.entries()]) {
+          if (targetClient.id === targetId && targetClient.id !== client.id) {
+            targetWs.send({ type: 'kicked', reason: 'Oda kurucusu tarafından çıkarıldın.' });
+            handleClientDeparture(targetWs, targetClient, 'kicked');
+            targetWs.close();
+          }
+        }
+        return;
+      }
 
       if (msg.type === 'join_lobby') {
         const token = msg.clientToken ? String(msg.clientToken).slice(0, 64) : null;
@@ -490,6 +586,7 @@ server.on('upgrade', (req, socket) => {
               client.locked = otherClient.locked;
               client.rerolls = otherClient.rerolls;
               clients.delete(otherWs);
+              otherWs.onclose = null;
               otherWs.close();
             }
           }
@@ -520,17 +617,20 @@ server.on('upgrade', (req, socket) => {
           });
         }
 
-        ws.send({ type: 'welcome', playerId: client.id, name: client.name });
+        ws.send({ type: 'welcome', playerId: client.id, name: client.name, hostId: getHostId() });
         broadcastLobbyState();
 
         // Auto-reconnect player if they belong to the currently running match
         if (roomPhase === 'in_game' && activeMatch && Array.isArray(activeMatch.slots)) {
-          const inActiveMatch = activeMatch.slots.find(
+          const slotIdx = activeMatch.slots.findIndex(
             s => (s.clientToken && s.clientToken === client.clientToken) || (s.playerId && s.playerId === client.id)
           );
-          if (inActiveMatch) {
-            inActiveMatch.playerId = client.id;
-            inActiveMatch.clientToken = client.clientToken;
+          if (slotIdx !== -1) {
+            const mySlot = activeMatch.slots[slotIdx];
+            mySlot.isHuman = true;
+            mySlot.playerId = client.id;
+            mySlot.clientToken = client.clientToken;
+            mySlot.name = client.name;
             ws.send({
               type: 'match_start',
               aiDiff: activeMatch.aiDiff,
@@ -538,22 +638,37 @@ server.on('upgrade', (req, socket) => {
               seed: activeMatch.seed,
               snapshot: activeMatch.latestSnapshot || null
             });
+            // Notify Host & other players that this human slot is active under human control!
+            broadcast({
+              type: 'player_joined_match',
+              slotIdx,
+              playerId: client.id,
+              clientToken: client.clientToken,
+              name: client.name,
+              specId: mySlot.specId,
+              team: mySlot.team,
+              spellD: mySlot.spellD,
+              spellF: mySlot.spellF
+            }, ws);
           }
         }
       } else if (msg.type === 'rejoin_match') {
         if (activeMatch && Array.isArray(activeMatch.slots)) {
-          let mySlot = activeMatch.slots.find(
+          let slotIdx = activeMatch.slots.findIndex(
             s => (s.clientToken && s.clientToken === client.clientToken) || (s.playerId && s.playerId === client.id)
           );
-          if (!mySlot && !msg.spectateOnly) {
-            mySlot = activeMatch.slots.find(s => !s.isHuman && s.team === client.team) || activeMatch.slots.find(s => !s.isHuman);
-            if (mySlot) {
+          if (slotIdx === -1 && !msg.spectateOnly) {
+            slotIdx = activeMatch.slots.findIndex(s => !s.isHuman && s.team === client.team);
+            if (slotIdx === -1) slotIdx = activeMatch.slots.findIndex(s => !s.isHuman);
+            if (slotIdx !== -1) {
+              const mySlot = activeMatch.slots[slotIdx];
               mySlot.isHuman = true;
               mySlot.playerId = client.id;
               mySlot.clientToken = client.clientToken;
               mySlot.name = client.name;
             }
           }
+          const mySlot = slotIdx !== -1 ? activeMatch.slots[slotIdx] : null;
           ws.send({
             type: 'match_start',
             aiDiff: activeMatch.aiDiff,
@@ -562,6 +677,20 @@ server.on('upgrade', (req, socket) => {
             snapshot: activeMatch.latestSnapshot || null,
             spectator: Boolean(msg.spectateOnly || !mySlot)
           });
+          // CRITICAL SYNC FIX: Broadcast to Host & all clients that a human took over this slot!
+          if (mySlot && !msg.spectateOnly) {
+            broadcast({
+              type: 'player_joined_match',
+              slotIdx,
+              playerId: client.id,
+              clientToken: client.clientToken,
+              name: client.name,
+              specId: mySlot.specId,
+              team: mySlot.team,
+              spellD: mySlot.spellD,
+              spellF: mySlot.spellF
+            }, ws);
+          }
           broadcastLobbyState();
         }
       } else if (msg.type === 'toggle_ready') {
@@ -586,7 +715,6 @@ server.on('upgrade', (req, socket) => {
         }
       } else if (msg.type === 'select_champ') {
         if (roomPhase === 'champ_select' && freePickMode && !client.locked && ALL_CHAMP_IDS.includes(msg.champId)) {
-          // Prevent picking a champion already locked by a teammate
           const teamLocked = getUniqueClients().some(
             other => other.id !== client.id && other.team === client.team && other.locked && other.champId === msg.champId
           );
@@ -647,7 +775,6 @@ server.on('upgrade', (req, socket) => {
           checkAllLockedShortenTimer();
         }
       } else if (msg.type === 'modify_bots') {
-        // STRICT HOST-ONLY CHECK FOR LOBBY SETTINGS
         if (!isHost || roomPhase !== 'lobby') return;
         const uniq = getUniqueClients();
         const bHum = uniq.filter(c => c.team === 'blue').length;
@@ -702,7 +829,6 @@ server.on('upgrade', (req, socket) => {
           broadcast({ type: 'chat', sender: client.name, text: txt, team: client.team });
         }
       } else if (msg.type === 'start_champ_select' || msg.type === 'start_game') {
-        // Only Host can transition from Custom Lobby to Timed Champion Select!
         if (!isHost) {
           client.ready = !client.ready;
           broadcastLobbyState();
@@ -723,28 +849,38 @@ server.on('upgrade', (req, socket) => {
           broadcast({ type: 'match_ended' });
           broadcastLobbyState();
         }
-      } else if (msg.type === 'ping_hb') {
-        client.lastPong = Date.now();
-        if (typeof msg.rtt === 'number') client.rtt = msg.rtt;
-        ws.send({ type: 'pong_hb', ts: msg.ts });
-      } else if (msg.type === 'leave_lobby') {
-        handleClientDisconnect(ws, client, true);
-        ws.close();
-      } else if (msg.type === 'kick_player') {
-        if (!isHost) return;
-        const targetId = Number(msg.targetId);
-        for (const [targetWs, targetClient] of [...clients.entries()]) {
-          if (targetClient.id === targetId && targetClient.id !== client.id) {
-            targetWs.send({ type: 'kicked', reason: 'Oda kurucusu seni odadan çıkardı.' });
-            handleClientDisconnect(targetWs, targetClient, true);
-            targetWs.close();
-          }
-        }
       } else if (msg.type === 'player_action') {
-        broadcast({ type: 'player_action', champIdx: msg.champIdx, action: msg.action }, ws);
+        const cIdx = Number(msg.champIdx);
+        if (activeMatch && Array.isArray(activeMatch.slots) && activeMatch.slots[cIdx]) {
+          const slot = activeMatch.slots[cIdx];
+          const ownsSlot = (slot.clientToken && slot.clientToken === client.clientToken) || (slot.playerId === client.id);
+          const hostControllingBot = isHost && (!slot.isHuman || msg.fromBot);
+          if (!ownsSlot && !hostControllingBot) return;
+        }
+        broadcast({
+          type: 'player_action',
+          champIdx: cIdx,
+          fromBot: Boolean(msg.fromBot),
+          action: msg.action,
+          seq: serverSeq++,
+          srvTs: Date.now()
+        }, ws, false);
       } else if (msg.type === 'player_state') {
-        broadcast({ type: 'player_state', champIdx: msg.champIdx, state: msg.state }, ws);
+        const cIdx = Number(msg.champIdx);
+        if (activeMatch && Array.isArray(activeMatch.slots) && activeMatch.slots[cIdx]) {
+          const slot = activeMatch.slots[cIdx];
+          const ownsSlot = (slot.clientToken && slot.clientToken === client.clientToken) || (slot.playerId === client.id);
+          if (!ownsSlot && !isHost) return;
+        }
+        broadcast({
+          type: 'player_state',
+          champIdx: cIdx,
+          state: msg.state,
+          seq: serverSeq++,
+          srvTs: Date.now()
+        }, ws, true);
       } else if (msg.type === 'world_sync') {
+        if (!isHost) return;
         if (activeMatch && msg.snapshot) {
           activeMatch.latestSnapshot = msg.snapshot;
           if (msg.snapshot.winner) {
@@ -752,15 +888,18 @@ server.on('upgrade', (req, socket) => {
             roomPhase = 'lobby';
           }
         }
-        if (isHost) {
-          broadcast({ type: 'world_sync', snapshot: msg.snapshot }, ws);
-        }
+        broadcast({
+          type: 'world_sync',
+          snapshot: msg.snapshot,
+          seq: serverSeq++,
+          srvTs: Date.now()
+        }, ws, true);
       }
     } catch (e) {}
   };
 
   ws.onclose = () => {
-    handleClientDisconnect(ws, client, false);
+    handleClientDeparture(ws, client, 'disconnect');
   };
 });
 
@@ -780,5 +919,6 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log('  LEAGUE OF LEGENDS — ARAM: MAYHEM (PC & MOBILE LAN SERVER)');
   console.log(`  Local PC:       http://localhost:${PORT}`);
   console.log(`  LAN / Mobile:   http://${ip}:${PORT}  <-- Open on phones/PCs!`);
+  console.log(`  Health Check:   http://${ip}:${PORT}/health`);
   console.log('═══════════════════════════════════════════════════════════════');
 });
