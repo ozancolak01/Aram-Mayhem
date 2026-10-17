@@ -1,0 +1,12 @@
+{
+  "name": "aram-mayhem",
+  "version": "1.0.0",
+  "description": "League of Legends — ARAM: Mayhem Web & Multiplayer Game",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
