@@ -227,6 +227,47 @@ function broadcastLobbyState() {
   });
 }
 
+
+function handleClientDisconnect(ws, client, isExplicitLeave = false) {
+  if (!clients.has(ws)) return;
+  if (!isExplicitLeave && client.clientToken) {
+    savedSessions.set(client.clientToken, {
+      id: client.id, name: client.name, champId: client.champId,
+      team: client.team, locked: client.locked, rerolls: client.rerolls,
+      spellD: client.spellD, spellF: client.spellF, lastSeen: Date.now()
+    });
+  } else if (isExplicitLeave && client.clientToken) {
+    savedSessions.delete(client.clientToken);
+  }
+  clients.delete(ws);
+
+  if (roomPhase === 'in_game' && activeMatch && Array.isArray(activeMatch.slots)) {
+    const slot = activeMatch.slots.find(
+      s => s.isHuman && ((client.clientToken && s.clientToken === client.clientToken) || s.playerId === client.id)
+    );
+    if (slot) {
+      slot.isHuman = false;
+      slot.playerId = -1;
+      slot.clientToken = null;
+      broadcast({
+        type: 'player_left_match',
+        playerId: client.id,
+        clientToken: client.clientToken,
+        name: client.name
+      });
+    }
+  }
+
+  const remainingHumans = getUniqueClients();
+  if (remainingHumans.length === 0) {
+    activeMatch = null;
+    roomPhase = 'lobby';
+  } else if (roomPhase === 'champ_select') {
+    checkAllLockedShortenTimer();
+  }
+  broadcastLobbyState();
+}
+
 function startChampSelectPhase() {
   roomPhase = 'champ_select';
   champSelectTimer = 30;
@@ -339,6 +380,13 @@ function launchMatchFromChampSelect() {
 
 // Server-side 1-second ticker for Timed Champion Select
 setInterval(() => {
+  const now = Date.now();
+  for (const [wsClient, c] of [...clients.entries()]) {
+    if (c.lastPong && (now - c.lastPong > 9500)) {
+      handleClientDisconnect(wsClient, c, false);
+      wsClient.close();
+    }
+  }
   if (roomPhase === 'champ_select') {
     if (clients.size === 0) {
       roomPhase = 'lobby';
@@ -357,6 +405,17 @@ setInterval(() => {
 }, 1000);
 
 const server = http.createServer((req, res) => {
+  if (req.url === '/health' || req.url === '/api/status') {
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-cache' });
+    res.end(JSON.stringify({
+      ok: true,
+      version: 'v9',
+      phase: roomPhase,
+      onlinePlayers: getUniqueClients().length,
+      matchInProgress: Boolean(roomPhase === 'in_game' && activeMatch)
+    }));
+    return;
+  }
   if (req.url === '/' || req.url.startsWith('/index.html') || req.url.startsWith('/?')) {
     const candidates = [
       path.join(__dirname, 'public', 'index.html'),
@@ -406,7 +465,9 @@ server.on('upgrade', (req, socket) => {
     locked: false,
     rerolls: 2,
     spellD: 'snowball',
-    spellF: 'flash'
+    spellF: 'flash',
+    lastPong: Date.now(),
+    rtt: 0
   };
   clients.set(ws, client);
 
@@ -662,6 +723,23 @@ server.on('upgrade', (req, socket) => {
           broadcast({ type: 'match_ended' });
           broadcastLobbyState();
         }
+      } else if (msg.type === 'ping_hb') {
+        client.lastPong = Date.now();
+        if (typeof msg.rtt === 'number') client.rtt = msg.rtt;
+        ws.send({ type: 'pong_hb', ts: msg.ts });
+      } else if (msg.type === 'leave_lobby') {
+        handleClientDisconnect(ws, client, true);
+        ws.close();
+      } else if (msg.type === 'kick_player') {
+        if (!isHost) return;
+        const targetId = Number(msg.targetId);
+        for (const [targetWs, targetClient] of [...clients.entries()]) {
+          if (targetClient.id === targetId && targetClient.id !== client.id) {
+            targetWs.send({ type: 'kicked', reason: 'Oda kurucusu seni odadan çıkardı.' });
+            handleClientDisconnect(targetWs, targetClient, true);
+            targetWs.close();
+          }
+        }
       } else if (msg.type === 'player_action') {
         broadcast({ type: 'player_action', champIdx: msg.champIdx, action: msg.action }, ws);
       } else if (msg.type === 'player_state') {
@@ -682,21 +760,7 @@ server.on('upgrade', (req, socket) => {
   };
 
   ws.onclose = () => {
-    if (client.clientToken) {
-      savedSessions.set(client.clientToken, {
-        id: client.id, name: client.name, champId: client.champId,
-        team: client.team, locked: client.locked, rerolls: client.rerolls,
-        spellD: client.spellD, spellF: client.spellF, lastSeen: Date.now()
-      });
-    }
-    clients.delete(ws);
-    if (clients.size === 0) {
-      activeMatch = null;
-      roomPhase = 'lobby';
-    } else if (roomPhase === 'champ_select') {
-      checkAllLockedShortenTimer();
-    }
-    broadcastLobbyState();
+    handleClientDisconnect(ws, client, false);
   };
 });
 
