@@ -287,8 +287,13 @@ function buildRoomsListPayload() {
         })
       : [];
 
+    const totalSlots = (room.phase === 'in_game' && room.activeMatch && Array.isArray(room.activeMatch.slots))
+      ? room.activeMatch.slots.length
+      : (rClients.length + room.blueBots.length + room.redBots.length);
+
     roomSummaries.push({
       id: room.id,
+      roomId: room.id,
       name: room.name,
       hostId: room.hostId,
       hostToken: room.hostToken,
@@ -296,6 +301,7 @@ function buildRoomsListPayload() {
       phase: room.phase,
       humanCount: rClients.length,
       botCount: room.blueBots.length + room.redBots.length,
+      totalSlots,
       freePickMode: room.freePickMode,
       aiDiff: room.aiDiff,
       matchInProgress: room.phase === 'in_game' && Boolean(room.activeMatch),
@@ -312,13 +318,15 @@ function buildRoomsListPayload() {
 
   const onlinePlayers = getUniqueAllClients().map(c => {
     const r = c.roomId ? rooms.get(c.roomId) : null;
+    const st = r ? r.phase : 'browser';
     return {
       id: c.id,
       name: c.name,
       team: c.team,
       roomId: c.roomId || null,
       roomName: r ? r.name : null,
-      phase: r ? r.phase : 'browser'
+      phase: st,
+      status: st
     };
   });
 
@@ -483,6 +491,16 @@ function assignClientToRoom(client, ws, room) {
   client.ready = false;
   client.locked = false;
   client.rerolls = 2;
+  if (room.phase === 'champ_select') {
+    const used = new Set([
+      ...getRoomClients(room.id).filter(c => c.id !== client.id).map(c => c.champId).filter(Boolean),
+      ...room.blueBench,
+      ...room.redBench
+    ]);
+    if (!client.champId || used.has(client.champId)) {
+      client.champId = pickUnusedChamp(used);
+    }
+  }
 
   // Ensure bots don't exceed 5 per team when a human joins
   const newBlueHumans = getRoomClients(room.id).filter(c => c.team === 'blue').length;
@@ -811,17 +829,64 @@ server.on('upgrade', (req, socket) => {
       }
 
       if (msg.type === 'join_room') {
-        const targetRoom = rooms.get(msg.roomId);
+        const requestedId = msg.roomId || msg.id;
+        const targetRoom = requestedId ? rooms.get(requestedId) : null;
         if (!targetRoom) {
+          ws.send({ type: 'left_room' });
           ws.send(buildRoomsListPayload());
           return;
         }
-        if (targetRoom.phase === 'in_game' && targetRoom.activeMatch) {
-          // Joining an in-progress room routes to rejoin_match
-          assignClientToRoom(client, ws, targetRoom);
-          return;
-        }
         assignClientToRoom(client, ws, targetRoom);
+        if (targetRoom.phase === 'in_game' && targetRoom.activeMatch && Array.isArray(targetRoom.activeMatch.slots)) {
+          let mySlotIdx = targetRoom.activeMatch.slots.findIndex(
+            s => (s.clientToken && s.clientToken === client.clientToken) || (s.playerId && s.playerId === client.id)
+          );
+          let tookOverBot = false;
+          if (mySlotIdx === -1) {
+            mySlotIdx = targetRoom.activeMatch.slots.findIndex(s => !s.isHuman && s.team === client.team);
+            if (mySlotIdx === -1) mySlotIdx = targetRoom.activeMatch.slots.findIndex(s => !s.isHuman);
+            if (mySlotIdx !== -1) {
+              const sl = targetRoom.activeMatch.slots[mySlotIdx];
+              sl.isHuman = true;
+              sl.playerId = client.id;
+              sl.clientToken = client.clientToken;
+              sl.name = client.name;
+              client.team = sl.team;
+              client.champId = sl.specId;
+              tookOverBot = true;
+              if (targetRoom.activeMatch.latestSnapshot && Array.isArray(targetRoom.activeMatch.latestSnapshot.champions) && targetRoom.activeMatch.latestSnapshot.champions[mySlotIdx]) {
+                const sc = targetRoom.activeMatch.latestSnapshot.champions[mySlotIdx];
+                sc.isPlayer = true;
+                sc.playerId = client.id;
+                sc.clientToken = client.clientToken;
+                sc.summonerName = client.name;
+              }
+            }
+          }
+          const mySlot = mySlotIdx !== -1 ? targetRoom.activeMatch.slots[mySlotIdx] : null;
+          ws.send({
+            type: 'match_start',
+            roomId: targetRoom.id,
+            hostId: targetRoom.hostId,
+            hostToken: targetRoom.hostToken,
+            aiDiff: targetRoom.activeMatch.aiDiff,
+            slots: targetRoom.activeMatch.slots,
+            seed: targetRoom.activeMatch.seed,
+            snapshot: targetRoom.activeMatch.latestSnapshot || null,
+            spectator: Boolean(!mySlot)
+          });
+          if (mySlot && mySlotIdx !== -1) {
+            broadcastToRoom(targetRoom.id, {
+              type: 'player_joined_match',
+              slotIdx: mySlotIdx,
+              playerId: client.id,
+              clientToken: client.clientToken,
+              name: client.name,
+              tookOverBot
+            }, ws);
+          }
+          broadcastRoomState(targetRoom);
+        }
         return;
       }
 
