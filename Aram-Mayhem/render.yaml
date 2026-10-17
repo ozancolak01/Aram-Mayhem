@@ -1,7 +1,0 @@
-services:
-  - type: web
-    name: aram-mayhem
-    runtime: node
-    plan: free
-    buildCommand: ""
-    startCommand: node server.js
