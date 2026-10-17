@@ -806,17 +806,36 @@
     </button>
   </div>
 </div>
-<div id="deviceSelectModal" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(1,10,19,0.96); z-index: 100;">
+<div id="deviceSelectModal" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(1,10,19,0.96); z-index: 105;">
   <div class="hex-panel max-w-md w-full p-5 text-center">
-    <h1 class="font-cinzel text-xl md:text-2xl font-black text-[#f0e6d2] tracking-wider mb-4">
+    <h1 class="font-cinzel text-xl md:text-2xl font-black text-[#f0e6d2] tracking-wider mb-2">
       CİHAZ SEÇİMİ
     </h1>
+    <p class="text-xs text-[#a09b8c] mb-4">Kontrol şemasını ve arayüzü cihazına göre optimize eder.</p>
     <div class="grid grid-cols-2 gap-3">
       <button onclick="selectInitialDevice('pc')" class="hex-btn-primary py-4 px-3 font-cinzel font-black text-sm uppercase">
         💻 BİLGİSAYAR
       </button>
       <button onclick="selectInitialDevice('mobile')" class="hex-btn-primary py-4 px-3 font-cinzel font-black text-sm uppercase">
         📱 MOBİL
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- 0.5 SUMMONER NAME PROMPT MODAL (Shown after Device Select ONLY if no name is saved in localStorage) -->
+<div id="summonerNameModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(1,10,19,0.96); z-index: 102;">
+  <div class="hex-panel max-w-md w-full p-6 text-center space-y-4">
+    <div class="w-12 h-12 mx-auto bg-[#091428] border-2 border-[#c8aa6e] flex items-center justify-center font-cinzel font-black text-xl text-[#c8aa6e]">⚔️</div>
+    <div>
+      <h2 class="font-cinzel text-xl md:text-2xl font-black text-[#f0e6d2] tracking-wider uppercase">SİHİRDAR ADINI SEÇ</h2>
+      <p class="text-xs text-[#a09b8c] mt-1">Sonsuz Uçurum lobilerinde ve skor tablosunda görünecek adın (Tarayıcıya kaydedilir, sonraki girişte tekrar sorulmaz).</p>
+    </div>
+    <div class="space-y-3">
+      <input id="initialSummonerNameInput" type="text" maxlength="16" placeholder="Örn: Faker, Caps, GeceAvcısı..." onkeydown="if(event.key==='Enter')confirmInitialSummonerName()" class="w-full bg-[#091428] border-2 border-[#785a28] focus:border-[#0ac8b9] px-3.5 py-2.5 text-sm font-bold text-[#f0e6d2] text-center outline-none">
+      <div id="nameModalError" class="hidden text-[11px] font-bold text-[#e84057]">Lütfen en az 2 karakterli geçerli bir Sihirdar Adı girin!</div>
+      <button onclick="confirmInitialSummonerName()" class="w-full hex-btn-primary py-3 font-cinzel font-black text-sm uppercase tracking-wider">
+        KAYDET &amp; LOBİLERE GEÇ
       </button>
     </div>
   </div>
@@ -832,7 +851,15 @@
       <p id="lobbySubtitle" class="hidden"></p>
     </div>
 
-    <div class="flex items-center gap-2">
+    <div class="flex items-center gap-1.5 md:gap-2 flex-wrap justify-end">
+      <button id="headerProfileBtn" onclick="openSummonerNameModal(true)" class="hex-btn px-2.5 py-1 text-[11px] flex items-center gap-1.5" title="Sihirdar Adını Değiştir">
+        <span class="text-[#0ac8b9]">👤</span>
+        <span id="headerSummonerName" class="font-bold text-[#f0e6d2]">Sihirdar</span>
+        <span class="text-[9px] text-[#c8aa6e]">✎</span>
+      </button>
+      <button id="navLobbyBrowserBtn" onclick="switchLobbyView('browser')" class="hex-btn px-2.5 py-1 text-[11px] text-[#c8aa6e]" title="Özel Oyun Lobileri Listesi">
+        🌐 Lobiler
+      </button>
       <span id="lanStatusBadge" class="text-[10px] px-2 py-0.5 bg-[#091428] text-[#0ac8b9] border border-[#0ac8b9]/40 font-mono font-bold">ODA</span>
       <span id="deviceLockedBadge" class="hidden"></span>
       <button id="lobbyFullscreenBtn" onclick="toggleFullscreenMode()" class="hex-btn px-2 py-1 text-xs text-[#f0e6d2]">⛶</button>
@@ -849,6 +876,52 @@
       <button onclick="requestRejoinActiveMatch(true)" class="hex-btn px-3 py-1 text-xs font-cinzel font-bold text-[#0ac8b9] uppercase">
         İZLE
       </button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  <!-- STAGE 0: CUSTOM GAME LOBBIES BROWSER (LOBİ KUR / KATIL / CANLI MAÇLAR)  -->
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  <div id="lobbyBrowserStage" class="flex-1 flex flex-col gap-3 px-3 md:px-5 py-2.5 max-w-[1440px] w-full mx-auto">
+    <div class="hex-panel p-3 md:p-4 flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-mono uppercase px-2 py-0.5 bg-[#091428] border border-[#0ac8b9] text-[#0ac8b9] font-bold">ÖZEL OYUN (CUSTOM GAME)</span>
+          <h2 class="font-cinzel text-base md:text-lg font-black text-[#f0e6d2] tracking-wider">SONSUZ UÇURUM LOBİLERİ &amp; CANLI MAÇLAR</h2>
+        </div>
+        <p class="text-[11px] text-[#a09b8c] mt-0.5">Açık lobilere katıl, yeni özel oyun kur veya devam eden maçlara botun yerine (mevcut seviyesi ve eşyalarıyla!) ya da izleyici olarak bağlan.</p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <button onclick="createNewCustomLobbyRoom()" class="hex-btn-primary px-4 py-2 font-cinzel text-xs font-black uppercase tracking-wider">
+          + YENİ ÖZEL LOBİ KUR / ODAYA GİR
+        </button>
+        <button onclick="quickStartSoloFromBrowser('5v5')" class="hex-btn px-3 py-2 text-xs text-[#0ac8b9]">
+          ⚡ Hızlı 5v5 Maç Kur
+        </button>
+        <button onclick="quickStartSoloFromBrowser('3v3')" class="hex-btn px-3 py-2 text-xs text-[#c8aa6e]">
+          ⚡ Hızlı 3v3 Maç Kur
+        </button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-3 flex-1 items-start">
+      <!-- Active Lobbies & Live Matches List (8 cols) -->
+      <div class="lg:col-span-8 hex-panel p-3 space-y-2.5">
+        <div class="flex items-center justify-between border-b border-[#463714] pb-1.5">
+          <span class="text-xs font-cinzel font-black uppercase tracking-wider text-[#c8aa6e]">AKTİF LOBİLER VE DEVAM EDEN KARŞILAŞMALAR</span>
+          <span id="browserRoomCountBadge" class="text-[10px] font-mono text-[#0ac8b9]">1 Aktif Oda</span>
+        </div>
+        <div id="lobbyBrowserList" class="space-y-2.5"></div>
+      </div>
+
+      <!-- Connected Players & Live Status Directory (4 cols) -->
+      <div class="lg:col-span-4 hex-panel p-3 space-y-2.5">
+        <div class="flex items-center justify-between border-b border-[#463714] pb-1.5">
+          <span class="text-xs font-cinzel font-black uppercase tracking-wider text-[#0ac8b9]">ÇEVRİMİÇİ SİHİRDARLAR</span>
+          <span id="browserOnlineCount" class="text-[10px] font-mono text-[#c8aa6e]">1 Çevrimiçi</span>
+        </div>
+        <div id="browserOnlinePlayersList" class="space-y-1.5 max-h-[260px] overflow-y-auto"></div>
+      </div>
     </div>
   </div>
 
@@ -879,6 +952,9 @@
         <input id="summonerNameInput" type="text" value="Summoner" maxlength="16" placeholder="Sihirdar Adı" onchange="sendNameUpdate()" class="bg-[#091428] border border-[#785a28] px-2.5 py-1.5 text-xs font-bold text-[#f0e6d2] flex-1 outline-none focus:border-[#c8aa6e]">
         <button id="switchTeamBtn" onclick="requestSwitchTeam()" class="hex-btn px-3 py-1.5 text-xs text-[#0ac8b9]">
           Takım Değiştir
+        </button>
+        <button onclick="switchLobbyView('browser')" class="hex-btn px-2.5 py-1.5 text-xs text-[#c8aa6e]" title="Lobi Listesine Dön">
+          Lobiler
         </button>
       </div>
 
@@ -1973,7 +2049,7 @@ const CHAMP_SPECS = {
     qName: 'Zincir Kırbaç', qDesc: 'Zincirlerini çapraz savurarak yavaşlatır ve 0.4 sn sonra kesişim noktasını ikinci kez patlatır.', qCd: 6.5, qCost: 45, qIcon: 'Q',
     wName: 'Kralkatili', wDesc: 'Hedefe atılarak büyü darbesi indirir ve Sylas’ı yüksek miktarda İYİLEŞTİRİR (Canı %40 altındayken 2 kat iyileştirir!).', wCd: 7.5, wCost: 50, wIcon: 'W',
     eName: 'Firar / Kaçır', eDesc: 'İleri atılıp zincirlerini fırlatır; isabet ettiği rakibi sersemletir ve Sylas’ı ona çeker.', eCd: 10.0, eCost: 55, eIcon: 'E',
-    rName: 'Gasp', rDesc: 'Hedef bölgedeki rakiplerin büyü gücünü gasp ederek alan hasarı vurur ve Sylas’a kalkan kazandırır.', rCd: 32.0, rCost: 80, rIcon: 'R',
+    rName: 'Gasp (Hijack)', rDesc: 'En yakındaki rakip şampiyonun ULTİSİNİ (R) GASP EDEREK kendiYG/SG değerleriyle ateşler ve Petrisit kalkanı kazanır!', rCd: 32.0, rCost: 80, rIcon: 'R',
     recBuild: ['guard_orb', 'boots_sorc', 'ludens', 'shadowflame', 'zhonya', 'rabadon'],
     recAugs: ['mystic_punch', 'eureka', 'witchful_thinking', 'endless_decimation', 'spirit_bomb', 'ocean_soul', 'goliath']
   },
@@ -2054,14 +2130,50 @@ const CHAMP_SPECS = {
   }
 };
 
-// Initialize guaranteed 32x32 Pixel-Art Ability Icons immediately (0ms, 100% offline-proof),
-// then asynchronously upgrade to verified Riot Data Dragon spell PNGs when online!
+// Official Verified Riot Data Dragon Ability & Passive Icon Map for all 18 Champions (including Sylas!)
+// Plus automatic onerror fallback to bespoke 32x32 16-Bit Pixel-Art Icons when offline!
+const VERIFIED_DDRAGON_ICONS = {
+  luxana: { p: 'LuxIlluminatingFraulein.png', q: 'LuxLightBinding.png', w: 'LuxPrismaticWave.png', e: 'LuxLightStrikeKugel.png', r: 'LuxMaliceCannon.png' },
+  yasu:   { p: 'Yasuo_Passive.png', q: 'YasuoQ1Wrapper.png', w: 'YasuoW.png', e: 'YasuoE.png', r: 'YasuoR.png' },
+  jinxie: { p: 'Jinx_Passive.png', q: 'JinxQ.png', w: 'JinxW.png', e: 'JinxE.png', r: 'JinxR.png' },
+  blitz:  { p: 'Blitzcrank_ManaBarrier.png', q: 'RocketGrab.png', w: 'Overdrive.png', e: 'PowerFist.png', r: 'StaticField.png' },
+  zedd:   { p: 'shadowninja_P.png', q: 'ZedQ.png', w: 'ZedW.png', e: 'ZedE.png', r: 'ZedR.png' },
+  ahria:  { p: 'Ahri_SoulEater2.png', q: 'AhriQ.png', w: 'AhriW.png', e: 'AhriE.png', r: 'AhriR.png' },
+  daren:  { p: 'Darius_Icon_Hemorrhage.png', q: 'DariusCleave.png', w: 'DariusNoxianTacticsONH.png', e: 'DariusAxeGrabCone.png', r: 'DariusExecute.png' },
+  ezre:   { p: 'Ezreal_RisingSpellForce.png', q: 'EzrealQ.png', w: 'EzrealW.png', e: 'EzrealE.png', r: 'EzrealR.png' },
+  morga:  { p: 'FallenAngel_Empathize.png', q: 'MorganaQ.png', w: 'MorganaW.png', e: 'MorganaE.png', r: 'MorganaR.png' },
+  pykeo:  { p: 'PykePassive.png', q: 'PykeQ.png', w: 'PykeW.png', e: 'PykeE.png', r: 'PykeR.png' },
+  veiga:  { p: 'VeigarEntropy.png', q: 'VeigarBalefulStrike.png', w: 'VeigarDarkMatter.png', e: 'VeigarEventHorizon.png', r: 'VeigarR.png' },
+  ashela: { p: 'Ashe_P.png', q: 'AsheQ.png', w: 'Volley.png', e: 'AsheSpiritOfTheHawk.png', r: 'EnchantedCrystalArrow.png' },
+  kata:   { p: 'Katarina_Passive.png', q: 'KatarinaQ.png', w: 'KatarinaW.png', e: 'KatarinaEWrapper.png', r: 'KatarinaR.png' },
+  thresh: { p: 'Thresh_Passive.png', q: 'ThreshQ.png', w: 'ThreshW.png', e: 'ThreshE.png', r: 'ThreshRPenta.png' },
+  mf:     { p: 'MissFortune_W.png', q: 'MissFortuneRicochetShot.png', w: 'MissFortuneViciousStrikes.png', e: 'MissFortuneScattershot.png', r: 'MissFortuneBulletTime.png' },
+  malph:  { p: 'Malphite_GraniteShield.png', q: 'SeismicShard.png', w: 'Obduracy.png', e: 'Landslide.png', r: 'UFSlash.png' },
+  kaisa:  { p: 'Kaisa_Passive.png', q: 'KaisaQ.png', w: 'KaisaW.png', e: 'KaisaE.png', r: 'KaisaR.png' },
+  jhin:   { p: 'Jhin_P.png', q: 'JhinQ.png', w: 'JhinW.png', e: 'JhinE.png', r: 'JhinR.png' },
+  sylas:  { p: 'SylasP.png', q: 'SylasQ.png', w: 'SylasW.png', e: 'SylasE.png', r: 'SylasR.png' },
+  leesin: { p: 'LeeSinPassive.png', q: 'BlindMonkQOne.png', w: 'BlindMonkWOne.png', e: 'BlindMonkEOne.png', r: 'BlindMonkRKick.png' },
+  vayne:  { p: 'Vayne_NightHunter.png', q: 'VayneTumble.png', w: 'VayneSilveredBolts.png', e: 'VayneCondemn.png', r: 'VayneInquisition.png' },
+  sett:   { p: 'Sett_P.png', q: 'SettQ.png', w: 'SettW.png', e: 'SettE.png', r: 'SettR.png' },
+  leona:  { p: 'LeonaSunlight.png', q: 'LeonaShieldOfDaybreak.png', w: 'LeonaSolarBarrier.png', e: 'LeonaZenithBlade.png', r: 'LeonaSolarFlare.png' },
+  viktor: { p: 'Viktor_Passive.png', q: 'ViktorPowerTransfer.png', w: 'ViktorGravitonField.png', e: 'ViktorDeathRay.png', r: 'ViktorChaosStorm.png' }
+};
+
 for (const sp of Object.values(CHAMP_SPECS)) {
-  sp.pImg = makePixelIconDataUri(sp.color, sp.accent, sp.pGlyph);
-  sp.qImg = makePixelIconDataUri(sp.color, sp.accent, sp.qGlyph);
-  sp.wImg = makePixelIconDataUri(sp.color, sp.accent, sp.wGlyph);
-  sp.eImg = makePixelIconDataUri(sp.color, sp.accent, sp.eGlyph);
-  sp.rImg = makePixelIconDataUri('#facc15', sp.accent, sp.rGlyph);
+  const v = VERIFIED_DDRAGON_ICONS[sp.id];
+  if (v) {
+    sp.pImg = `${DD_BASE}/passive/${v.p}`;
+    sp.qImg = `${DD_BASE}/spell/${v.q}`;
+    sp.wImg = `${DD_BASE}/spell/${v.w}`;
+    sp.eImg = `${DD_BASE}/spell/${v.e}`;
+    sp.rImg = `${DD_BASE}/spell/${v.r}`;
+  } else {
+    sp.pImg = makePixelIconDataUri(sp.color, sp.accent, sp.pGlyph);
+    sp.qImg = makePixelIconDataUri(sp.color, sp.accent, sp.qGlyph);
+    sp.wImg = makePixelIconDataUri(sp.color, sp.accent, sp.wGlyph);
+    sp.eImg = makePixelIconDataUri(sp.color, sp.accent, sp.eGlyph);
+    sp.rImg = makePixelIconDataUri('#facc15', sp.accent, sp.rGlyph);
+  }
 }
 
 function preloadDDragonAbilityIcons() {
@@ -2706,12 +2818,90 @@ function applyBotDifficultyProfile(c, aiDiff) {
 //  PART 3B: COMBAT, SPELL ENGINE, SUMMONER SPELLS, AI & MAIN LOOP
 // ═══════════════════════════════════════════════════════════════════════════
 
+let lobbySubView = 'browser'; // 'browser' | 'room'
+
+function getSavedSummonerName() {
+  try {
+    const raw = (localStorage.getItem('aram_mayhem_name') || '').trim();
+    if (raw && raw.length >= 2 && raw !== 'Summoner' && !raw.startsWith('Oyuncu ')) {
+      return raw.slice(0, 16);
+    }
+  } catch (e) {}
+  return '';
+}
+
+function syncSummonerNameEverywhere(name) {
+  const clean = String(name || '').trim().slice(0, 16) || 'Sihirdar';
+  try { localStorage.setItem('aram_mayhem_name', clean); } catch (e) {}
+  const inp = document.getElementById('summonerNameInput');
+  if (inp) inp.value = clean;
+  const initInp = document.getElementById('initialSummonerNameInput');
+  if (initInp) initInp.value = clean;
+  const hdr = document.getElementById('headerSummonerName');
+  if (hdr) hdr.textContent = clean;
+  if (lanConnected) sendWs({ type: 'set_name', name: clean });
+}
+
+function openSummonerNameModal(forceEdit = false) {
+  const modal = document.getElementById('summonerNameModal');
+  if (!modal) return;
+  const saved = getSavedSummonerName();
+  const initInp = document.getElementById('initialSummonerNameInput');
+  if (initInp) {
+    initInp.value = saved || '';
+    setTimeout(() => { try { initInp.focus(); initInp.select(); } catch (e) {} }, 60);
+  }
+  const errEl = document.getElementById('nameModalError');
+  if (errEl) errEl.classList.add('hidden');
+  modal.classList.remove('hidden');
+}
+
+function confirmInitialSummonerName() {
+  ensureAudio();
+  const initInp = document.getElementById('initialSummonerNameInput');
+  const val = initInp ? initInp.value.trim() : '';
+  const errEl = document.getElementById('nameModalError');
+  if (!val || val.length < 2) {
+    if (errEl) errEl.classList.remove('hidden');
+    return;
+  }
+  if (errEl) errEl.classList.add('hidden');
+  syncSummonerNameEverywhere(val);
+  const modal = document.getElementById('summonerNameModal');
+  if (modal) modal.classList.add('hidden');
+  SFX.augmentOpen();
+  renderLobby();
+}
+
+function switchLobbyView(view) {
+  ensureAudio();
+  lobbySubView = (view === 'room') ? 'room' : 'browser';
+  SFX.move();
+  renderLobby();
+}
+
+function createNewCustomLobbyRoom() {
+  ensureAudio();
+  lobbySubView = 'room';
+  SFX.augmentOpen();
+  renderLobby();
+}
+
+function quickStartSoloFromBrowser(mode) {
+  ensureAudio();
+  lobbySubView = 'room';
+  if (mode === '5v5') quickFill5v5Bots();
+  else if (mode === '3v3') quickFill3v3Bots();
+  renderLobby();
+}
+
 function selectInitialDevice(mode) {
   ensureAudio();
   deviceConfirmed = true;
   const isMob = (mode === 'mobile');
   isMobileMode = isMob;
   userForcedMobileMode = isMob;
+  try { localStorage.setItem('aram_mayhem_device', isMob ? 'mobile' : 'pc'); } catch (e) {}
   const sel = document.getElementById('controlSchemeSelect');
   if (sel) sel.value = isMob ? 'mobile' : 'lol';
   const badge = document.getElementById('deviceLockedBadge');
@@ -2740,6 +2930,14 @@ function selectInitialDevice(mode) {
     checkMobileOrientationOverlay();
   }
   SFX.augmentOpen();
+  // Check localStorage for saved Summoner Name: if present, skip asking; if absent, show #summonerNameModal!
+  const savedName = getSavedSummonerName();
+  if (savedName) {
+    syncSummonerNameEverywhere(savedName);
+    renderLobby();
+  } else {
+    openSummonerNameModal(false);
+  }
 }
 
 function startSoloChampSelect() {
@@ -2840,6 +3038,8 @@ function initMatch(serverMatchData = null) {
     matchSeed = 20261017;
   }
 
+  const hasExistingSnapshot = Boolean(serverMatchData && serverMatchData.snapshot && Array.isArray(serverMatchData.snapshot.champions));
+
   if (serverMatchData && serverMatchData.slots) {
     myChampIdx = 0;
     serverMatchData.slots.forEach((sl) => {
@@ -2852,7 +3052,9 @@ function initMatch(serverMatchData = null) {
       c.clientToken = sl.clientToken || null;
       if (!sl.isHuman) {
         applyBotDifficultyProfile(c, aiDiff);
-        aiAutoBuyAndAugment(c);
+        if (!hasExistingSnapshot) {
+          aiAutoBuyAndAugment(c);
+        }
       }
       G.champions.push(c);
     });
@@ -2882,7 +3084,9 @@ function initMatch(serverMatchData = null) {
       c.isLocalMe = sl.isMe;
       if (!sl.isHuman) {
         applyBotDifficultyProfile(c, aiDiff);
-        aiAutoBuyAndAugment(c);
+        if (!hasExistingSnapshot) {
+          aiAutoBuyAndAugment(c);
+        }
       }
       G.champions.push(c);
     });
@@ -2890,9 +3094,17 @@ function initMatch(serverMatchData = null) {
 
   inGame = true;
   serverMatchInProgress = true;
+  isSpectatorMode = Boolean(serverMatchData && serverMatchData.spectator);
+
+  if (hasExistingSnapshot) {
+    applyWorldSync(serverMatchData.snapshot, true);
+  }
+
   const player = getMyChamp();
-  camX = player.team === BLUE ? player.x + 220 : player.x - 220;
-  camY = LANE_Y;
+  if (player) {
+    camX = clamp(player.x + (player.team === BLUE ? 160 : -160), 220, WORLD_W - 220);
+    camY = LANE_Y;
+  }
   updateWorldZoom();
   initSnowflakes();
   document.getElementById('lobbyScreen').classList.add('hidden');
@@ -2901,13 +3113,16 @@ function initMatch(serverMatchData = null) {
   renderHudInventory();
   renderActiveAugmentsHud();
 
-  isSpectatorMode = Boolean(serverMatchData && serverMatchData.spectator);
   if (isSpectatorMode) {
     cameraLocked = false;
     showAnnouncement('👁️ CANLI İZLEYİCİ MODU', '#c8aa6e', 'Devam eden karşılaşmayı canlı izliyorsun. Haritaya tıklayarak kamerayı gezdir.');
-  } else if (serverMatchData && serverMatchData.snapshot) {
-    applyWorldSync(serverMatchData.snapshot);
-    showAnnouncement('MAÇA YENİDEN BAĞLANDIN!', '#0ac8b9', 'Şampiyonunun kontrolü kaldığı yerden devam ediyor.');
+  } else if (hasExistingSnapshot) {
+    const meNow = getMyChamp();
+    const lvlInfo = meNow ? ` (Seviye ${meNow.level} • ${meNow.items.length} Eşya • ${meNow.augments.length} Eklenti)` : '';
+    showAnnouncement('MAÇA BAĞLANDIN!', '#0ac8b9', `Şampiyonunun tüm seviye, altın ve eşyaları korundu${lvlInfo}.`);
+    if (meNow && meNow.pendingAugmentPhases && meNow.pendingAugmentPhases.length > 0 && !meNow.dead) {
+      setTimeout(() => { if (inGame && !isSpectatorMode) openAugmentModal(); }, 450);
+    }
   } else {
     setTimeout(() => { if (inGame && !isSpectatorMode) openAugmentModal(); }, 350);
   }
@@ -4684,17 +4899,39 @@ function castAbility(idx, key, mx, my) {
           }
         }
       } else if (c.specId === 'sylas') {
-        // Sylas R: Hijack Unleashed — Steals ultimates in an arcane cataclysm + shield & heal
+        // Sylas R: Authentic LoL Hijack (Gasp) — Steals the nearest/cursor enemy champion's Ultimate and fires it!
         const d = Math.min(285, dist(c.x, c.y, mx, my));
         const tx = clamp(c.x + Math.cos(a) * d, 80, WORLD_W - 80);
         const ty = clamp(c.y + Math.sin(a) * d, BRIDGE_TOP + 24, BRIDGE_BOT - 24);
+        const enemyChamps = G.champions.filter(en => !en.dead && en.team !== c.team).sort((u, v) => dist(mx, my, u.x, u.y) - dist(mx, my, v.x, v.y));
+        const hijackedTarget = enemyChamps[0] || G.champions.find(en => en.team !== c.team);
+        const hijackedSpecId = (hijackedTarget && hijackedTarget.specId !== 'sylas') ? hijackedTarget.specId : 'luxana';
+        const hijackedSpec = CHAMP_SPECS[hijackedSpecId] || CHAMP_SPECS.luxana;
         if (oa === 0) {
-          c.shield += 280 + c.ap * 0.70; c.shieldTimer = 3.5;
+          c.shield += 260 + c.ap * 0.70; c.shieldTimer = 3.5;
           c.petriciteStacks = 3;
+          addFloatText(c.x, c.y - 30, `GASP: ${hijackedSpec.name.toUpperCase()} ULTİSİ!`, '#38bdf8', 15);
         }
-        spawnAoE({ x: tx, y: ty, radius: 165, dmg: 320 + c.ap * 0.95, team: c.team, ownerIdx: idx, color: 'rgba(56,189,248,0.62)', dur: 0.48, onHit: t => {
-          if (!t.ccImmuneTimer || t.ccImmuneTimer <= 0) t.stunTimer = 0.9;
-        }});
+        // Fire hijacked ultimate signature effect + Petricite cataclysm
+        if (hijackedSpecId === 'luxana') {
+          spawnBeam({ x1: c.x, y1: c.y, x2: c.x + Math.cos(a) * 860, y2: c.y + Math.sin(a) * 860, width: 38, dmg: 340 + c.ap * 1.05, team: c.team, ownerIdx: idx, color: '#38bdf8', dur: 0.50 });
+        } else if (hijackedSpecId === 'ashela' || hijackedSpecId === 'jinxie' || hijackedSpecId === 'ezre') {
+          spawnProj({ x: c.x, y: c.y, ang: a, speed: 1200, maxRange: 1050, maxHits: 1, champOnly: hijackedSpecId !== 'ezre', pierce: hijackedSpecId === 'ezre', dmg: 320 + c.ap * 1.0, isSpell: true, team: c.team, ownerIdx: idx, color: '#38bdf8', r: 18, shape: hijackedSpecId === 'ashela' ? 'arrow' : 'rocket', onHit: t => {
+            if (!t.ccImmuneTimer || t.ccImmuneTimer <= 0) t.stunTimer = 1.4;
+            spawnAoE({ x: t.x, y: t.y, radius: 135, dmg: 140 + c.ap * 0.4, team: c.team, ownerIdx: idx, color: 'rgba(56,189,248,0.55)', dur: 0.4 });
+          }});
+        } else if (hijackedSpecId === 'malph' || hijackedSpecId === 'leona' || hijackedSpecId === 'sett' || hijackedSpecId === 'daren' || hijackedSpecId === 'pykeo') {
+          if (oa === 0 && (hijackedSpecId === 'malph' || hijackedSpecId === 'sett')) {
+            c.x = tx; c.y = ty; c.targetX = tx; c.targetY = ty;
+          }
+          spawnAoE({ x: tx, y: ty, radius: 165, dmg: 340 + c.ap * 1.05, isTrue: (hijackedSpecId === 'daren' || hijackedSpecId === 'pykeo'), team: c.team, ownerIdx: idx, color: 'rgba(56,189,248,0.68)', dur: 0.50, onHit: t => {
+            if (!t.ccImmuneTimer || t.ccImmuneTimer <= 0) t.stunTimer = 1.35;
+          }});
+        } else {
+          spawnAoE({ x: tx, y: ty, radius: 170, dmg: 330 + c.ap * 1.0, team: c.team, ownerIdx: idx, color: 'rgba(56,189,248,0.62)', dur: 0.48, onHit: t => {
+            if (!t.ccImmuneTimer || t.ccImmuneTimer <= 0) t.stunTimer = 1.0;
+          }});
+        }
       } else if (c.specId === 'leesin') {
         // Lee Sin R: Dragon's Rage — Roundhouse kicks enemy 260 units backward, knocking up everyone in their path!
         if (oa === 0) {
@@ -7222,11 +7459,79 @@ function toggleReadyState() {
   renderLobby();
 }
 
-function requestRejoinActiveMatch(spectateOnly = false) {
+function requestRejoinActiveMatch(spectateOnly = false, targetSlotIdx = null) {
   ensureAudio();
   if (lanConnected) {
-    sendWs({ type: 'rejoin_match', clientToken: myClientToken, spectateOnly: Boolean(spectateOnly) });
+    sendWs({
+      type: 'rejoin_match',
+      clientToken: myClientToken,
+      spectateOnly: Boolean(spectateOnly),
+      targetSlotIdx: typeof targetSlotIdx === 'number' ? targetSlotIdx : null
+    });
+    return;
   }
+  // Offline / Solo saved session resume or bot takeover
+  const savedBackup = loadLocalMatchBackup();
+  if (savedBackup && savedBackup.snapshot) {
+    if (typeof targetSlotIdx === 'number' && savedBackup.slots[targetSlotIdx]) {
+      savedBackup.slots.forEach((s, idx) => { s.isHuman = (idx === targetSlotIdx); s.clientToken = (idx === targetSlotIdx) ? myClientToken : null; });
+      if (savedBackup.snapshot.champions && savedBackup.snapshot.champions[targetSlotIdx]) {
+        savedBackup.snapshot.champions[targetSlotIdx].isPlayer = true;
+        savedBackup.snapshot.champions[targetSlotIdx].clientToken = myClientToken;
+        savedBackup.snapshot.champions[targetSlotIdx].summonerName = getSavedSummonerName() || 'Sihirdar';
+      }
+    }
+    initMatch({
+      aiDiff: savedBackup.aiDiff || 'normal',
+      slots: savedBackup.slots,
+      seed: savedBackup.seed || 20261017,
+      snapshot: savedBackup.snapshot,
+      spectator: Boolean(spectateOnly)
+    });
+  }
+}
+
+function saveLocalMatchBackup() {
+  if (!inGame || !G || G.winner) return;
+  try {
+    const snap = buildWorldSnapshot();
+    const slots = G.champions.map(c => ({
+      team: c.team,
+      isHuman: Boolean(c.isPlayer),
+      playerId: c.playerId || -1,
+      clientToken: c.clientToken || (c.idx === myChampIdx ? myClientToken : null),
+      name: c.summonerName,
+      specId: c.specId,
+      spellD: c.spellD,
+      spellF: c.spellF
+    }));
+    sessionStorage.setItem('aram_mayhem_live_backup', JSON.stringify({
+      ts: Date.now(),
+      aiDiff: G.aiDiff || 'normal',
+      seed: matchSeed,
+      slots,
+      snapshot: snap
+    }));
+  } catch (e) {}
+}
+
+function loadLocalMatchBackup() {
+  try {
+    const raw = sessionStorage.getItem('aram_mayhem_live_backup');
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if (!data || !data.snapshot || (Date.now() - (data.ts || 0) > 30 * 60 * 1000)) {
+      sessionStorage.removeItem('aram_mayhem_live_backup');
+      return null;
+    }
+    return data;
+  } catch (e) {
+    return null;
+  }
+}
+
+function clearLocalMatchBackup() {
+  try { sessionStorage.removeItem('aram_mayhem_live_backup'); } catch (e) {}
 }
 
 function handleLanMessage(msg) {
@@ -7518,15 +7823,38 @@ function buildWorldSnapshot() {
     time: G.time, blueKills: G.blueKills, redKills: G.redKills, winner: G.winner,
     waveCount: G.waveCount, minionWaveTimer: G.minionWaveTimer,
     champions: G.champions.map(c => ({
+      idx: c.idx, team: c.team, specId: c.specId,
       x: Math.round(c.x), y: Math.round(c.y), targetX: Math.round(c.targetX), targetY: Math.round(c.targetY),
       facing: +(c.facing || 0).toFixed(2),
       isPlayer: Boolean(c.isPlayer), playerId: c.playerId || -1, clientToken: c.clientToken || null,
       summonerName: c.summonerName,
       hp: Math.round(c.hp), maxHp: c.maxHp, mana: Math.round(c.mana), maxMana: c.maxMana,
       shield: Math.round(c.shield), level: c.level, xp: Math.round(c.xp), nextXp: c.nextXp, gold: Math.round(c.gold),
-      kills: c.kills, deaths: c.deaths, assists: c.assists, cs: c.cs, totalDmg: Math.round(c.totalDmg || 0),
+      kills: c.kills, deaths: c.deaths, assists: c.assists, cs: c.cs, streak: c.streak || 0, totalDmg: Math.round(c.totalDmg || 0),
       dead: Boolean(c.dead), respawnTimer: +(c.respawnTimer || 0).toFixed(2), lifeEpoch: c.lifeEpoch || 1,
-      stunTimer: +(c.stunTimer || 0).toFixed(2), rootTimer: +(c.rootTimer || 0).toFixed(2)
+      stunTimer: +(c.stunTimer || 0).toFixed(2), rootTimer: +(c.rootTimer || 0).toFixed(2),
+      leftFountain: Boolean(c.leftFountain), canShop: Boolean(c.canShop),
+      itemIds: c.items.map(it => it.id),
+      augIds: c.augments.map(ag => ag.id),
+      pendingAugmentPhases: [...(c.pendingAugmentPhases || [])],
+      augRerolls: c.augRerolls !== undefined ? c.augRerolls : 2,
+      permBonusHp: c.permBonusHp || 0,
+      bonusAD: c.bonusAD || 0,
+      bonusAP: c.bonusAP || 0,
+      baseArmor: c.baseArmor,
+      haste: c.haste || 0,
+      permVamp: c.permVamp || 0,
+      permRegen: c.permRegen || 0,
+      permManaRegen: c.permManaRegen || 0,
+      poroSnax: c.poroSnax !== undefined ? c.poroSnax : 2,
+      monarch: Boolean(c.monarch),
+      quest: c.quest ? { ...c.quest } : null,
+      qTimer: +(c.qTimer || 0).toFixed(2),
+      wTimer: +(c.wTimer || 0).toFixed(2),
+      eTimer: +(c.eTimer || 0).toFixed(2),
+      rTimer: +(c.rTimer || 0).toFixed(2),
+      dTimer: +(c.dTimer || 0).toFixed(2),
+      fTimer: +(c.fTimer || 0).toFixed(2)
     })),
     structures: G.structures.map(s => ({ id: s.id, hp: Math.round(s.hp), dead: s.dead, targetId: s.targetId, respawnTimer: s.respawnTimer })),
     relics: G.relics.map(r => ({ id: r.id, active: r.active, timer: r.timer })),
@@ -7540,7 +7868,92 @@ function buildWorldSnapshot() {
   };
 }
 
-function applyWorldSync(snap) {
+function restoreChampionItemsAndAugments(c, sc, isFullRestore = false) {
+  let changed = false;
+  if (Array.isArray(sc.itemIds)) {
+    const curIds = c.items.map(it => it.id).join(',');
+    const newIds = sc.itemIds.join(',');
+    if (curIds !== newIds || isFullRestore) {
+      c.items = sc.itemIds.map(id => ARAM_ITEMS.find(it => it.id === id)).filter(Boolean);
+      changed = true;
+    }
+  }
+  if (Array.isArray(sc.augIds)) {
+    const curAugs = c.augments.map(ag => ag.id).join(',');
+    const newAugs = sc.augIds.join(',');
+    if (curAugs !== newAugs || isFullRestore) {
+      c.augments = [];
+      c.qSpread = 1; c.snowballNova = false; c.poroAmbush = false; c.rMulti = false;
+      c.sharkStorm = false; c.spiritBomb = false; c.hitCdr = 0; c.resetOnKill = false;
+      c.piercing = false; c.executioner = false; c.killDmgBonus = 0; c.hpOnHit = 0;
+      const spec = CHAMP_SPECS[c.specId] || CHAMP_SPECS.luxana;
+      c.rCd = spec.rCd;
+      c.damageMultiplier = c.isPlayer ? 1.12 : (c.damageMultiplier || 0.58);
+      for (const aid of sc.augIds) {
+        const aug = MAYHEM_AUGMENTS.find(a => a.id === aid);
+        if (aug) {
+          c.augments.push(aug);
+          if (aug.id === 'triple_q') c.qSpread = 3;
+          else if (aug.id === 'snowball_nova') c.snowballNova = true;
+          else if (aug.id === 'poro_ambush') c.poroAmbush = true;
+          else if (aug.id === 'ultimate_bot') { c.rMulti = true; c.rCd = spec.rCd * 0.65; }
+          else if (aug.id === 'shark_storm') c.sharkStorm = true;
+          else if (aug.id === 'spirit_bomb') c.spiritBomb = true;
+          else if (aug.id === 'jeweled_gauntlet') c.spellCrit = true;
+          else if (aug.id === 'goliath') { c.damageMultiplier += 0.35; c.r = Math.max(c.r, 27); }
+          else if (aug.id === 'mystic_punch') c.hitCdr = 0.65;
+          else if (aug.id === 'endless_decimation') c.resetOnKill = true;
+          else if (aug.id === 'thread_needle') { c.piercing = true; c.damageMultiplier += 0.22; }
+          else if (aug.id === 'executioner') { c.executioner = true; c.damageMultiplier += 0.18; }
+          else if (aug.id === 'phenomenal_evil') c.killDmgBonus = 0.12;
+          else if (aug.id === 'heavy_hitter') c.hpOnHit = 0.04;
+        }
+      }
+      changed = true;
+    }
+  }
+  if (typeof sc.permBonusHp === 'number') c.permBonusHp = sc.permBonusHp;
+  if (typeof sc.bonusAD === 'number') c.bonusAD = sc.bonusAD;
+  if (typeof sc.bonusAP === 'number') c.bonusAP = sc.bonusAP;
+  if (typeof sc.baseArmor === 'number') c.baseArmor = sc.baseArmor;
+  if (typeof sc.haste === 'number') c.haste = sc.haste;
+  if (typeof sc.permVamp === 'number') c.permVamp = sc.permVamp;
+  if (typeof sc.permRegen === 'number') c.permRegen = sc.permRegen;
+  if (typeof sc.permManaRegen === 'number') c.permManaRegen = sc.permManaRegen;
+  if (typeof sc.monarch === 'boolean') c.monarch = sc.monarch;
+  if (sc.quest !== undefined) c.quest = sc.quest ? { ...sc.quest } : null;
+
+  if (isFullRestore) {
+    if (Array.isArray(sc.pendingAugmentPhases)) {
+      c.pendingAugmentPhases = [...sc.pendingAugmentPhases];
+      // If taking over a bot that already picked its augments, only queue future level phases
+      const targetAugsForLvl = (sc.level >= 15 ? 4 : sc.level >= 11 ? 3 : sc.level >= 7 ? 2 : 1);
+      if (c.augments.length >= targetAugsForLvl) {
+        c.pendingAugmentPhases = [];
+      }
+    }
+    if (typeof sc.augRerolls === 'number') c.augRerolls = sc.augRerolls;
+    if (typeof sc.poroSnax === 'number') c.poroSnax = sc.poroSnax;
+    if (typeof sc.leftFountain === 'boolean') c.leftFountain = sc.leftFountain;
+    if (typeof sc.canShop === 'boolean') c.canShop = sc.canShop;
+    if (typeof sc.qTimer === 'number') c.qTimer = sc.qTimer;
+    if (typeof sc.wTimer === 'number') c.wTimer = sc.wTimer;
+    if (typeof sc.eTimer === 'number') c.eTimer = sc.eTimer;
+    if (typeof sc.rTimer === 'number') c.rTimer = sc.rTimer;
+    if (typeof sc.dTimer === 'number') c.dTimer = sc.dTimer;
+    if (typeof sc.fTimer === 'number') c.fTimer = sc.fTimer;
+    c.x = sc.x; c.y = sc.y; c.targetX = sc.targetX; c.targetY = sc.targetY;
+  }
+  if (changed || isFullRestore) {
+    recalcStats(c);
+    if (c.idx === myChampIdx) {
+      renderHudInventory();
+      renderActiveAugmentsHud();
+    }
+  }
+}
+
+function applyWorldSync(snap, isInitialRejoin = false) {
   if (!G || !snap) return;
   G.time = snap.time;
   G.blueKills = snap.blueKills;
@@ -7562,18 +7975,15 @@ function applyWorldSync(snap) {
       const oldLevel = c.level;
       const epochChanged = (typeof sc.lifeEpoch === 'number' && sc.lifeEpoch !== (c.lifeEpoch || 1));
 
-      // Sync player/bot ownership status in case a player joined or left mid-match
       if (typeof sc.isPlayer === 'boolean') c.isPlayer = sc.isPlayer;
       if (sc.summonerName) c.summonerName = sc.summonerName;
       if (sc.clientToken !== undefined) c.clientToken = sc.clientToken;
       if (sc.playerId !== undefined) c.playerId = sc.playerId;
 
-      // Authoritative combat & economy stats apply to ALL champions (including i === myChampIdx!)
-      c.hp = sc.hp;
-      c.maxHp = sc.maxHp;
-      c.mana = sc.mana;
-      c.maxMana = sc.maxMana;
-      c.shield = sc.shield;
+      if (c.isPlayer) {
+        c.botHpMult = 1.0;
+      }
+
       c.level = sc.level;
       if (typeof sc.xp === 'number') c.xp = sc.xp;
       if (typeof sc.nextXp === 'number') c.nextXp = sc.nextXp;
@@ -7582,13 +7992,21 @@ function applyWorldSync(snap) {
       c.deaths = sc.deaths;
       c.assists = sc.assists;
       c.cs = sc.cs;
+      if (typeof sc.streak === 'number') c.streak = sc.streak;
       if (typeof sc.totalDmg === 'number') c.totalDmg = sc.totalDmg;
       c.dead = Boolean(sc.dead);
       c.respawnTimer = sc.respawnTimer;
       if (typeof sc.lifeEpoch === 'number') c.lifeEpoch = sc.lifeEpoch;
 
-      // Check level-up augment unlocks for local player when synced from Host
-      if (i === myChampIdx && c.level > oldLevel) {
+      restoreChampionItemsAndAugments(c, sc, isInitialRejoin || i !== myChampIdx);
+
+      c.hp = sc.hp;
+      c.maxHp = sc.maxHp;
+      c.mana = sc.mana;
+      c.maxMana = sc.maxMana;
+      c.shield = sc.shield;
+
+      if (!isInitialRejoin && i === myChampIdx && c.level > oldLevel) {
         recalcStats(c);
         for (let lv = oldLevel + 1; lv <= c.level; lv++) {
           if ([7, 11, 15].includes(lv) && !c.pendingAugmentPhases.includes(lv) && c.augments.length < 4) {
@@ -7599,9 +8017,7 @@ function applyWorldSync(snap) {
         }
       }
 
-      // Handle Death & Respawn state transitions cleanly for BOTH local and remote champions!
-      if (!wasDead && c.dead) {
-        // Champion just died on authoritative Host
+      if (!wasDead && c.dead && !isInitialRejoin) {
         c.netX = undefined;
         c.netY = undefined;
         c.attackTarget = null;
@@ -7613,8 +8029,7 @@ function applyWorldSync(snap) {
           SFX.kill();
           screenShake = Math.max(screenShake, 10);
         }
-      } else if ((wasDead && !c.dead) || (epochChanged && !c.dead)) {
-        // Champion just respawned at Fountain — snap to spawnX/spawnY and wipe stale netX/netY!
+      } else if (((wasDead && !c.dead) || (epochChanged && !c.dead)) && !isInitialRejoin) {
         c.netX = undefined;
         c.netY = undefined;
         c.x = c.spawnX;
@@ -7639,9 +8054,8 @@ function applyWorldSync(snap) {
           if (typeof sc.facing === 'number') c.facing = sc.facing;
         }
       } else if (i === myChampIdx && !c.dead) {
-        // For local player on Guest: only reconcile position if knocked/pulled/teleported or severely desynced (>340px)
         const posDrift = dist(c.x, c.y, sc.x, sc.y);
-        if (posDrift > 340) {
+        if (isInitialRejoin || posDrift > 340) {
           c.x = sc.x;
           c.y = sc.y;
           c.targetX = sc.targetX;
@@ -8395,6 +8809,7 @@ function toggleScoreboard(forceState) {
 // ═══ END OF GAME ═══
 function finishMatch() {
   serverMatchInProgress = false;
+  clearLocalMatchBackup();
   if (lanConnected && isLanHost) {
     sendWs({ type: 'end_match' });
   }
@@ -8420,6 +8835,7 @@ function finishMatch() {
 function playAgainSame() { initMatch(); }
 function returnToLobby() {
   inGame = false;
+  clearLocalMatchBackup();
   isSpectatorMode = false;
   lobbyPhase = 'lobby';
   myChampLocked = false;
@@ -8433,17 +8849,156 @@ function returnToLobby() {
 }
 
 // ═══ 2-STAGE PRE-GAME CONTROLLER: CUSTOM LOBBY -> TIMED CHAMPION SELECT ═══
+function renderLobbyBrowserStage() {
+  const listEl = document.getElementById('lobbyBrowserList');
+  const onlineEl = document.getElementById('browserOnlinePlayersList');
+  const roomBadge = document.getElementById('browserRoomCountBadge');
+  const onlineBadge = document.getElementById('browserOnlineCount');
+  if (!listEl || !onlineEl) return;
+
+  const myName = getSavedSummonerName() || document.getElementById('summonerNameInput').value.trim() || 'Sihirdar';
+  const localBackup = !lanConnected ? loadLocalMatchBackup() : null;
+  const isLiveGame = (lanConnected && serverMatchInProgress) || Boolean(localBackup);
+
+  const playersList = (lanConnected && lanLobbyPlayers.length > 0)
+    ? lanLobbyPlayers
+    : [{ id: myPlayerId, name: myName, team: myLobbyTeam, ready: true, inGame: isLiveGame }];
+
+  if (onlineBadge) onlineBadge.textContent = `${playersList.length} Çevrimiçi`;
+  onlineEl.innerHTML = playersList.map((p, idx) => {
+    const isMe = (p.id === myPlayerId);
+    const pInGame = isLiveGame && (!serverMatchInfo || !Array.isArray(serverMatchInfo.players) || serverMatchInfo.players.includes(p.name));
+    const stText = pInGame ? '⚔️ OYUNDA' : (lobbyPhase === 'champ_select' ? '⏳ SEÇİMDE' : '🟢 LOBİDE');
+    const stCol = pInGame ? 'text-[#fde047] border-[#c8aa6e]' : 'text-[#4ade80] border-[#10b981]';
+    return `
+      <div class="flex items-center justify-between bg-[#060e1a] border border-[#3c3c41] px-2.5 py-1.5 text-xs">
+        <div class="flex items-center gap-2 min-w-0">
+          <span class="w-2 h-2 rounded-full ${p.team === 'red' ? 'bg-[#e84057]' : 'bg-[#0ac8b9]'}"></span>
+          <span class="font-bold truncate ${isMe ? 'text-[#c8aa6e]' : 'text-[#f0e6d2]'}">${p.name}${isMe ? ' (Sen)' : ''}</span>
+        </div>
+        <span class="text-[9px] font-mono px-1.5 py-0.5 bg-[#091428] border ${stCol} font-bold shrink-0">${stText}</span>
+      </div>
+    `;
+  }).join('');
+
+  const hostName = playersList[0] ? playersList[0].name : myName;
+  const totalHumans = playersList.length;
+  const totalBots = blueBots.length + redBots.length;
+
+  let cardsHtml = '';
+
+  // Card 1: Active Main Room / Live Match Card
+  if (isLiveGame) {
+    const mInfo = (lanConnected && serverMatchInfo) ? serverMatchInfo : (localBackup && localBackup.snapshot ? {
+      time: localBackup.snapshot.time || 0,
+      blueKills: localBackup.snapshot.blueKills || 0,
+      redKills: localBackup.snapshot.redKills || 0,
+      hasOpenBotSlot: localBackup.snapshot.champions.some(c => !c.isPlayer),
+      slots: localBackup.snapshot.champions
+    } : { time: 0, blueKills: 0, redKills: 0, hasOpenBotSlot: true, slots: [] });
+
+    const mins = Math.floor((mInfo.time || 0) / 60);
+    const secs = Math.floor((mInfo.time || 0) % 60);
+    const slotList = Array.isArray(mInfo.slots) ? mInfo.slots : [];
+
+    const slotRowsHtml = slotList.map((sl, sIdx) => {
+      const sp = CHAMP_SPECS[sl.specId] || CHAMP_SPECS.luxana;
+      const isBot = !sl.isPlayer && !sl.isHuman;
+      const itemCount = Array.isArray(sl.itemIds) ? sl.itemIds.length : 0;
+      const teamCol = sl.team === 'red' ? 'text-[#e84057]' : 'text-[#0ac8b9]';
+      return `
+        <div class="flex items-center justify-between bg-[#010a13] border border-[#3c3c41] px-2 py-1 text-[11px] gap-2">
+          <div class="flex items-center gap-1.5 min-w-0">
+            <img src="${sp.squareUrl}" onerror="handleImgError(this,'${sp.color}','${sp.accent}','orb')" class="w-6 h-6 border border-[#785a28] shrink-0">
+            <div class="min-w-0">
+              <div class="font-bold truncate ${teamCol}">${sp.name} <span class="text-[#c8aa6e] font-mono">Sv.${sl.level || 3}</span></div>
+              <div class="text-[9px] text-[#a09b8c] font-mono">${isBot ? '🤖 BOT' : ('👤 ' + (sl.summonerName || sl.name || 'Oyuncu'))} • ${sl.kills || 0}/${sl.deaths || 0}/${sl.assists || 0} • ${itemCount} Eşya • ${sl.gold || 1400}G</div>
+            </div>
+          </div>
+          ${isBot ? `<button onclick="requestRejoinActiveMatch(false, ${sIdx})" class="hex-btn-primary px-2 py-1 text-[9px] font-cinzel font-black uppercase shrink-0" title="${sp.name} (Sv.${sl.level || 3}) yerine aynı seviye ve eşyalarla katıl!">YERİNE GEÇ (Sv.${sl.level || 3})</button>` : `<span class="text-[9px] font-mono text-[#4ade80] font-bold shrink-0">OYUNDA</span>`}
+        </div>
+      `;
+    }).join('');
+
+    cardsHtml += `
+      <div class="bg-[#060e1a] border-2 border-[#0ac8b9] p-3 space-y-2.5 shadow-xl">
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-[#3c3c41] pb-2">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 bg-[#e84057]/20 border border-[#e84057] text-[#e84057] text-[10px] font-mono font-black animate-pulse">● OYUNDA — CANLI MAÇ</span>
+              <span class="font-cinzel font-black text-sm text-[#f0e6d2]">${hostName} — Sonsuz Uçurum Lobisi</span>
+            </div>
+            <div class="text-[11px] text-[#a09b8c] font-mono mt-0.5">
+              Süre: <b class="text-[#f0e6d2]">${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}</b> • Skor: <b class="text-[#0ac8b9]">Mavi ${mInfo.blueKills || 0}</b> - <b class="text-[#e84057]">${mInfo.redKills || 0} Kırmızı</b> • Mod: ${freePickMode ? 'Serbest Seçim' : 'Rastgele ARAM'}
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            ${mInfo.hasOpenBotSlot !== false ? `<button onclick="requestRejoinActiveMatch(false)" class="hex-btn-primary px-3.5 py-2 text-xs font-cinzel font-black uppercase">⚔️ BOTUN YERİNE KATIL</button>` : ''}
+            <button onclick="requestRejoinActiveMatch(true)" class="hex-btn px-3.5 py-2 text-xs font-cinzel font-bold text-[#0ac8b9] uppercase">👁️ İZLEYİCİ OL</button>
+            <button onclick="switchLobbyView('room')" class="hex-btn px-2.5 py-2 text-xs">Oda Detayı</button>
+          </div>
+        </div>
+        ${slotRowsHtml ? `
+          <div>
+            <div class="text-[10px] font-mono font-bold text-[#c8aa6e] mb-1 uppercase">Maçtaki Şampiyonlar (İstediğin Botun Yerine Mevcut Seviyesi ve Eşyalarıyla Katılabilirsin):</div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-1.5 max-h-[210px] overflow-y-auto">${slotRowsHtml}</div>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  } else {
+    cardsHtml += `
+      <div class="bg-[#060e1a] border-2 border-[#785a28] hover:border-[#c8aa6e] p-3.5 flex flex-wrap items-center justify-between gap-3 transition">
+        <div class="space-y-1">
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-0.5 bg-[#10b981]/20 border border-[#10b981] text-[#4ade80] text-[10px] font-mono font-black">● AÇIK LOBİ — BEKLİYOR</span>
+            <span class="font-cinzel font-black text-sm md:text-base text-[#f0e6d2]">${hostName} — Sonsuz Uçurum Özel Odası</span>
+          </div>
+          <div class="text-xs text-[#a09b8c] font-mono">
+            Oyuncular: <b class="text-[#0ac8b9]">${totalHumans} İnsan + ${totalBots} Bot</b> (${totalHumans + totalBots}/10) • Mod: <b class="text-[#c8aa6e]">${freePickMode ? 'Serbest Seçim' : 'Rastgele (ARAM)'}</b> • Zorluk: <b class="text-[#f0e6d2] uppercase">${document.getElementById('aiDiffSelect').value}</b>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="switchLobbyView('room')" class="hex-btn-primary px-5 py-2.5 font-cinzel text-xs font-black uppercase tracking-wider">
+            LOBİYE KATIL / YÖNET →
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  if (roomBadge) roomBadge.textContent = isLiveGame ? '1 Canlı Maç Devam Ediyor' : '1 Açık Lobi';
+  listEl.innerHTML = cardsHtml;
+}
+
 function renderLobby() {
   const t = I18N[currentLang];
   const customStage = document.getElementById('customLobbyStage');
   const csStage = document.getElementById('champSelectStage');
 
-  // Toggle between Stage 1 (Custom Lobby) and Stage 2 (Timed Champion Select)
+  const browserStage = document.getElementById('lobbyBrowserStage');
+  const savedName = getSavedSummonerName();
+  if (savedName) {
+    const hdrName = document.getElementById('headerSummonerName');
+    if (hdrName) hdrName.textContent = savedName;
+    const inpName = document.getElementById('summonerNameInput');
+    if (inpName && (!inpName.value || inpName.value === 'Summoner')) inpName.value = savedName;
+  }
+
+  // Toggle between Stage 0 (Custom Lobbies Browser), Stage 1 (Custom Room), and Stage 2 (Timed Champion Select)
   if (lobbyPhase === 'champ_select') {
+    if (browserStage) browserStage.classList.add('hidden');
     if (customStage) customStage.classList.add('hidden');
     if (csStage) csStage.classList.remove('hidden');
     document.getElementById('lobbySubtitle').textContent = 'ŞAMPİYON SEÇİMİ • KENDİ TAKIMINLA KULÜBE PAYLAŞIMI • KİLİTLE VE BAŞLA';
+  } else if (lobbySubView === 'browser') {
+    if (browserStage) browserStage.classList.remove('hidden');
+    if (customStage) customStage.classList.add('hidden');
+    if (csStage) csStage.classList.add('hidden');
+    document.getElementById('lobbySubtitle').textContent = 'ÖZEL OYUN LOBİLERİ • LOBİ KUR, KATIL VEYA CANLI MAÇLARI İZLE';
+    renderLobbyBrowserStage();
   } else {
+    if (browserStage) browserStage.classList.add('hidden');
     if (customStage) customStage.classList.remove('hidden');
     if (csStage) csStage.classList.add('hidden');
     document.getElementById('lobbySubtitle').textContent = 'SONSUZ UÇURUM • ÖZEL OYUN ODASI (LOBİDE ŞAMPİYON SEÇİLMEZ)';
@@ -9331,6 +9886,10 @@ window.onload = () => {
   preloadDDragonAbilityIcons();
   initMobileTouchControls();
 
+  const existingName = getSavedSummonerName();
+  if (existingName) {
+    syncSummonerNameEverywhere(existingName);
+  }
   renderLobby();
   connectLanServer();
 
@@ -9490,6 +10049,12 @@ window.onload = () => {
         for (const kf of killFeedList) kf.timer -= dt;
         killFeedList = killFeedList.filter(k => k.timer > 0);
 
+        if (!window._backupAccum) window._backupAccum = 0;
+        window._backupAccum += dt;
+        if (window._backupAccum >= 1.0) {
+          window._backupAccum = 0;
+          saveLocalMatchBackup();
+        }
         renderGame();
       } catch (err) {
         console.error('Frame error:', err);
