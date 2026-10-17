@@ -1775,8 +1775,8 @@ const CHAMP_SPECS = {
     hp: 1030, mana: 520, speed: 178, range: 245, baseAD: 54, baseAP: 32, atkSpeed: 0.90, armor: 28,
     pName: 'Öz Hırsızı', pDesc: 'Şampiyon alt etmeleri Ahri’yi 150 (+40% AP) iyileştirir.',
     qName: 'Aldatan Küre', qDesc: 'Giderken büyü hasarı, dönerken GERÇEK HASAR veren küresini fırlatır.', qCd: 7.0, qCost: 50, qIcon: 'Q',
-    qName: 'Tilki Ateşi', wDesc: 'Hareket hızı kazanır ve yakındaki rakiplere 3 tilki ateşi gönderir.', wCd: 7.5, wCost: 45, wIcon: 'W',
-    qName: 'Ayartma', eDesc: 'İsabet ettiği ilk rakibi 1.4 sn kendine aşık ederek (Stun) büyü hasarı verir.', eCd: 11.0, eCost: 60, eIcon: 'E',
+    wName: 'Tilki Ateşi', wDesc: 'Hareket hızı kazanır ve yakındaki rakiplere 3 tilki ateşi gönderir.', wCd: 7.5, wCost: 45, wIcon: 'W',
+    eName: 'Ayartma', eDesc: 'İsabet ettiği ilk rakibi 1.4 sn kendine aşık ederek (Stun) büyü hasarı verir.', eCd: 11.0, eCost: 60, eIcon: 'E',
     rName: 'Ruh Saldırısı', rDesc: 'İmleç yönüne atılarak yakındaki rakiplere ruh özü ışınları ateşler.', rCd: 34.0, rCost: 80, rIcon: 'R',
     recBuild: ['guard_orb', 'boots_sorc', 'ludens', 'shadowflame', 'zhonya', 'rabadon'],
     recAugs: ['eureka', 'jeweled_gauntlet', 'witchful_thinking', 'phenomenal_evil', 'triple_q', 'spirit_bomb', 'quest_wooglets']
@@ -1821,7 +1821,7 @@ const CHAMP_SPECS = {
     pName: 'Ruh Sömürüsü', pDesc: 'Yeteneklerin verdiği hasarın %22’si kadar iyileşir.',
     qName: 'Karanlık Esaret', qDesc: 'İsabet ettiği ilk rakibi 2.0 sn yerine mıhlayan (Root) karanlık küre atar.', qCd: 9.0, qCost: 55, qIcon: 'Q',
     wName: 'Zulüm Gölgesi', wDesc: 'Hedef bölgeyi 3 sn lanetleyerek içindeki rakipleri sürekli yakar.', wCd: 8.5, wCost: 60, wIcon: 'W',
-    qCharges: 0, eName: 'Kara Kalkan', wDesc: '3.5 sn boyunca 320 (+70% AP) Kara Kalkan ve KİTLE KONTROL BAĞIŞIKLIĞI sağlar.', eCd: 13.5, eCost: 65, eIcon: 'E',
+    eName: 'Kara Kalkan', eDesc: '3.5 sn boyunca 320 (+70% AP) Kara Kalkan ve KİTLE KONTROL BAĞIŞIKLIĞI sağlar.', eCd: 13.5, eCost: 65, eIcon: 'E',
     rName: 'Ruh Prangası', rDesc: 'Yakındaki tüm rakipleri zincirleyerek 310 (+90% AP) hasar verir ve 1.4 sn sersemletir.', rCd: 36.0, rCost: 100, rIcon: 'R',
     recBuild: ['guard_orb', 'boots_sorc', 'liandry', 'zhonya', 'shadowflame', 'rabadon'],
     recAugs: ['eureka', 'witchful_thinking', 'spirit_bomb', 'phenomenal_evil', 'quest_wooglets', 'triple_q', 'ocean_soul']
@@ -1851,7 +1851,7 @@ const CHAMP_SPECS = {
     pName: 'Muazzam Kötülük Gücü', pDesc: 'Şampiyonlara isabet eden her yetenek ve her alt etme kalıcı olarak +3 AP kazandırır.',
     qName: 'Uğursuz Saldırı', qDesc: '2 hedefi delen karanlık enerji gönderir ve kalıcı AP yükü kazandırır.', qCd: 5.5, qCost: 40, qIcon: 'Q',
     wName: 'Karanlık Madde', wDesc: 'Gökten karanlık madde düşürerek 250 (+95% AP) alan hasarı verir.', wCd: 7.5, wCost: 55, wIcon: 'W',
-    eName: 'Ufuk Çizgisi', wDesc: 'Hedef alanda rakipleri 1.4 sn sersemleten karanlık kafes oluşturur.', eCd: 13.5, eCost: 70, eIcon: 'E',
+    eName: 'Ufuk Çizgisi', eDesc: 'Hedef alanda rakipleri 1.4 sn sersemleten karanlık kafes oluşturur.', eCd: 13.5, eCost: 70, eIcon: 'E',
     rName: 'Ezeli Patlama', rDesc: 'Eksik cana göre artan devasa ezici büyü hasarı patlatır.', rCd: 36.0, rCost: 100, rIcon: 'R',
     recBuild: ['guard_orb', 'boots_sorc', 'ludens', 'rabadon', 'shadowflame', 'zhonya'],
     recAugs: ['phenomenal_evil', 'quest_wooglets', 'eureka', 'witchful_thinking', 'jeweled_gauntlet', 'triple_q', 'ultimate_bot']
@@ -1881,7 +1881,7 @@ const CHAMP_SPECS = {
     pName: 'Açgözlü', pDesc: 'Şampiyon alt etmelerine katılmak Katarina’nın tüm bekleme sürelerini 15 sn azaltır!',
     qName: 'Sıçrayan Bıçak', qDesc: 'Rakipleri delen ve saplandığı yerde alan hasarı veren hançer fırlatır.', qCd: 7.0, qCost: 0, qIcon: 'Q',
     wName: 'Hazırlık', wDesc: 'Hareket hızı kazanır ve çevresine bıçak fırtınası savurur.', wCd: 9.0, wCost: 0, wIcon: 'W',
-    eName: 'Shunpo', wDesc: 'Hedef konuma anında ışınlanarak çevresindeki rakiplere darbe indirir.', eCd: 8.0, eCost: 0, eIcon: 'E',
+    eName: 'Shunpo', eDesc: 'Hedef konuma anında ışınlanarak çevresindeki rakiplere darbe indirir.', eCd: 8.0, eCost: 0, eIcon: 'E',
     rName: 'Ölüm Çiçeği', rDesc: 'Olduğu yerde dönerek yakındaki tüm rakiplere ölümcül hançer yağdırır.', rCd: 34.0, rCost: 0, rIcon: 'R',
     recBuild: ['guard_orb', 'boots_sorc', 'shadowflame', 'zhonya', 'rabadon', 'ludens'],
     recAugs: ['endless_decimation', 'jeweled_gauntlet', 'executioner', 'spirit_bomb', 'witchful_thinking', 'shark_storm', 'snowball_nova']
@@ -1940,8 +1940,8 @@ const CHAMP_SPECS = {
     hp: 1010, mana: 480, speed: 178, range: 235, baseAD: 65, baseAP: 26, atkSpeed: 1.08, armor: 28,
     pName: 'İkinci Deri (Plazma & Evrim)', pDesc: 'Saldırılar ve W Plazma yükler. 5. yük patlayarak hedefin Eksik Canının %15 (+AP) kadarını vurur! Yüksek AD/AP/AS ile Q (10 füze), W (3 yük & %65 CD iadesi) ve E (Görünmezlik) EVRİMLEŞİR!',
     qName: 'Icathia Yaylımı', qDesc: 'Yakındaki rakiplere güdümlü 6 Hiçlik füzesi (Evrimleşince 10 füze!) yağdırır.', qCd: 6.5, qCost: 45, qIcon: 'Q',
-    wName: 'Hiçlik Güdümü', qDesc: 'Uzun menzilli Hiçlik ışını atar, 2 Plazma yükü (Evrimde 3 yük + %65 bekleme süresi iadesi) uygular.', wCd: 11.0, wCost: 55, wIcon: 'W',
-    eName: 'Aşırı Yükleme', qDesc: 'Hareket hızını +%65 artırır (Evrimde 0.9 sn Görünmezlik!) ve 4 sn +%55 Saldırı Hızı verir. Saldırılar E süresini azaltır.', eCd: 10.5, eCost: 40, wCharges: 0, eIcon: 'E',
+    wName: 'Hiçlik Güdümü', wDesc: 'Uzun menzilli Hiçlik ışını atar, 2 Plazma yükü (Evrimde 3 yük + %65 bekleme süresi iadesi) uygular.', wCd: 11.0, wCost: 55, wIcon: 'W',
+    eName: 'Aşırı Yükleme', eDesc: 'Hareket hızını +%65 artırır (Evrimde 0.9 sn Görünmezlik!) ve 4 sn +%55 Saldırı Hızı verir. Saldırılar E süresini azaltır.', eCd: 10.5, eCost: 40, wCharges: 0, eIcon: 'E',
     rName: 'Ölümcül İçgüdü', rDesc: 'Plazma işaretli veya imleç yakınındaki rakibin yanına ışık hızında atılır ve dev bir Hiçlik Kalkanı kazanır!', rCd: 34.0, rCost: 80, rIcon: 'R',
     recBuild: ['guard_hammer', 'boots_zerk', 'kraken', 'guinsoo', 'nashors', 'rabadon'],
     recAugs: ['mystic_punch', 'deft_hands', 'scoped_weapons', 'jeweled_gauntlet', 'triple_q', 'executioner', 'eureka']
@@ -1955,8 +1955,8 @@ const CHAMP_SPECS = {
     hp: 1010, mana: 460, speed: 175, range: 250, baseAD: 76, baseAP: 0, atkSpeed: 0.84, armor: 28,
     pName: 'Suflör (4. Kurşun)', pDesc: 'Silahı 4 kurşun alır; Saldırı Hızı ek AD’ye dönüşür. 4. Kurşun HER ZAMAN KRİTİK VURUR, hedefin Eksik Canının %18’i kadar ek hasar verir ve +%35 Hareket Hızı kazandırır!',
     qName: 'Dans Eden Bomba', qDesc: 'En fazla 4 rakip arasında seken fişek bombası atar; öldürdüğü her hedef başına hasarı +%35 artar.', qCd: 5.5, qCost: 40, qIcon: 'Q',
-    wName: 'Ölümcül İlham', qDesc: 'Uzun menzilli keskin atış yapar; yakın zamanda hasar almış şampiyonları 1.65 sn YERİNE MIHLAR (Root).', wCd: 9.5, wCost: 50, qCharges: 0, wIcon: 'W',
-    eName: 'Esaret Çiçeği', qDesc: 'Rakipleri %45 yavaşlatan ve çiçek açarak patlayan bir Lotus Kapanı yerleştirir.', eCd: 10.0, eCost: 45, eIcon: 'E',
+    wName: 'Ölümcül İlham', wDesc: 'Uzun menzilli keskin atış yapar; yakın zamanda hasar almış şampiyonları 1.65 sn YERİNE MIHLAR (Root).', wCd: 9.5, wCost: 50, qCharges: 0, wIcon: 'W',
+    eName: 'Esaret Çiçeği', eDesc: 'Rakipleri %45 yavaşlatan ve çiçek açarak patlayan bir Lotus Kapanı yerleştirir.', eCd: 10.0, eCost: 45, eIcon: 'E',
     rName: 'Son Perde', rDesc: 'Uzun menzilli 4 keskin nişancı mermisi ateşler; 4. mermi %200 Kritik ve Eksik Can hasarı vurur!', rCd: 36.0, rCost: 100, rIcon: 'R',
     recBuild: ['guard_blade', 'boots_zerk', 'collector', 'infinity_edge', 'lord_dom', 'axiom_arc'],
     recAugs: ['scoped_weapons', 'executioner', 'thread_needle', 'jeweled_gauntlet', 'triple_q', 'ultimate_bot', 'eureka']
@@ -1970,8 +1970,8 @@ const CHAMP_SPECS = {
     hp: 1290, mana: 520, speed: 184, range: 75, baseAD: 68, baseAP: 38, atkSpeed: 0.96, armor: 38,
     pName: 'Petrisit Patlaması', pDesc: 'Her yetenek kullanımı Petrisit yükü verir (en fazla 3). Normal saldırılar yük harcayarak zincirleri çevrede savurur ve alan büyü hasarı vurur.',
     qName: 'Zincir Kırbaç', qDesc: 'Zincirlerini çapraz savurarak yavaşlatır ve 0.4 sn sonra kesişim noktasını ikinci kez patlatır.', qCd: 6.5, qCost: 45, qIcon: 'Q',
-    wName: 'Kralkatili', qDesc: 'Hedefe atılarak büyü darbesi indirir ve Sylas’ı yüksek miktarda İYİLEŞTİRİR (Canı %40 altındayken 2 kat iyileştirir!).', wCd: 7.5, wCost: 50, wIcon: 'W',
-    eName: 'Firar / Kaçır', qDesc: 'İleri atılıp zincirlerini fırlatır; isabet ettiği rakibi sersemletir ve Sylas’ı ona çeker.', eCd: 10.0, eCost: 55, eIcon: 'E',
+    wName: 'Kralkatili', wDesc: 'Hedefe atılarak büyü darbesi indirir ve Sylas’ı yüksek miktarda İYİLEŞTİRİR (Canı %40 altındayken 2 kat iyileştirir!).', wCd: 7.5, wCost: 50, wIcon: 'W',
+    eName: 'Firar / Kaçır', eDesc: 'İleri atılıp zincirlerini fırlatır; isabet ettiği rakibi sersemletir ve Sylas’ı ona çeker.', eCd: 10.0, eCost: 55, eIcon: 'E',
     rName: 'Gasp', rDesc: 'Hedef bölgedeki rakiplerin büyü gücünü gasp ederek alan hasarı vurur ve Sylas’a kalkan kazandırır.', rCd: 32.0, rCost: 80, rIcon: 'R',
     recBuild: ['guard_orb', 'boots_sorc', 'ludens', 'shadowflame', 'zhonya', 'rabadon'],
     recAugs: ['mystic_punch', 'eureka', 'witchful_thinking', 'endless_decimation', 'spirit_bomb', 'ocean_soul', 'goliath']
@@ -1985,8 +1985,8 @@ const CHAMP_SPECS = {
     hp: 1320, mana: 200, speed: 188, range: 72, baseAD: 75, baseAP: 0, atkSpeed: 0.98, armor: 42,
     pName: 'Artçı Rüzgâr', pDesc: 'Yetenek kullandıktan sonraki 2 normal saldırı +%45 Saldırı Hızı kazanır ve 25 Enerji yeniler.',
     qName: 'Ses Dalgası / Titreşim Darbesi', qDesc: '1. Kullanım: Ses dalgası atıp hedefi işaretler. 2. Kullanım (3 sn içinde tekrar Q): İşaretli hedefe uçan tekme ile atılır!', qCd: 7.0, qCost: 35, qIcon: 'Q',
-    wName: 'Koruma / Demir İrade', qDesc: 'Hedef konuma/dosta atılır, 240 (+80% AD) Kalkan ve 3.5 sn +%20 Can Çalma kazanır.', wCd: 9.0, wCost: 35, wIcon: 'W',
-    eName: 'Fırtına', qDesc: 'Yere vurarak çevresindeki rakiplere büyü hasarı verir, görünmezleri açığa çıkarır ve %45 yavaşlatır.', eCd: 7.0, wCost: 35, eCost: 30, eIcon: 'E',
+    wName: 'Koruma / Demir İrade', wDesc: 'Hedef konuma/dosta atılır, 240 (+80% AD) Kalkan ve 3.5 sn +%20 Can Çalma kazanır.', wCd: 9.0, wCost: 35, wIcon: 'W',
+    eName: 'Fırtına', eDesc: 'Yere vurarak çevresindeki rakiplere büyü hasarı verir, görünmezleri açığa çıkarır ve %45 yavaşlatır.', eCd: 7.0, eCost: 30, eIcon: 'E',
     rName: 'Ejderhanın Gazabı', rDesc: 'Rakibe döner tekme atarak 260 birim GERİ SAVURUR ve çarpıştığı tüm rakipleri 1.2 sn havaya uçurur!', rCd: 32.0, rCost: 0, rIcon: 'R',
     recBuild: ['guard_blade', 'boots_zerk', 'sundered_sky', 'trinity', 'axiom_arc', 'collector'],
     recAugs: ['mystic_punch', 'executioner', 'endless_decimation', 'snowball_nova', 'goliath', 'heavy_hitter', 'eureka']
@@ -2000,8 +2000,8 @@ const CHAMP_SPECS = {
     hp: 980, mana: 440, speed: 178, range: 235, baseAD: 66, baseAP: 0, atkSpeed: 1.08, armor: 27,
     pName: 'Gümüş Oklar', pDesc: 'Aynı hedefe yapılan her 3. ardışık saldırı veya yetenek, hedefin Azami Canının %12’si kadar GERÇEK HASAR vurur!',
     qName: 'Takla', qDesc: 'İleri takla atar, saldırı sayacını sıfırlar ve sonraki atışı güçlendirir (Ulti açıkken 1 sn GÖRÜNMEZ yapar!).', qCd: 3.6, qCost: 25, qIcon: 'Q',
-    wName: 'Gümüş Ok Odaklanması', qDesc: '3.5 sn boyunca +%38 Saldırı Hızı verir ve en yakındaki rakibe anında 1 Gümüş Ok halkası işler.', wCd: 9.0, wCost: 35, wIcon: 'W',
-    eName: 'Kazık', qDesc: 'Rakibi geri iter; köprü duvarına veya kuleye çarparsa 2 KAT HASAR alır ve 1.5 sn SERSEMLER!', eCd: 11.5, eCost: 55, eIcon: 'E',
+    wName: 'Gümüş Ok Odaklanması', wDesc: '3.5 sn boyunca +%38 Saldırı Hızı verir ve en yakındaki rakibe anında 1 Gümüş Ok halkası işler.', wCd: 9.0, wCost: 35, wIcon: 'W',
+    eName: 'Kazık', eDesc: 'Rakibi geri iter; köprü duvarına veya kuleye çarparsa 2 KAT HASAR alır ve 1.5 sn SERSEMLER!', eCd: 11.5, eCost: 55, eIcon: 'E',
     rName: 'Son Saat', rDesc: '8 sn boyunca +45 AD, +%25 Hareket Hızı verir ve her Q (Tumble) kullanımında Vayne’i GÖRÜNMEZ yapar!', rCd: 36.0, rCost: 80, rIcon: 'R',
     recBuild: ['guard_hammer', 'boots_zerk', 'kraken', 'bork', 'guinsoo', 'infinity_edge'],
     recAugs: ['scoped_weapons', 'deft_hands', 'mystic_punch', 'executioner', 'thread_needle', 'endless_decimation', 'poro_ambush']
@@ -2015,8 +2015,8 @@ const CHAMP_SPECS = {
     hp: 1640, mana: 100, speed: 178, range: 72, baseAD: 76, baseAP: 0, atkSpeed: 0.90, armor: 54,
     pName: 'Arena Azmi (Sol-Sağ Kroşe)', pDesc: 'Her 2. yumruğu +%35 AD ek hasar vurur. Aldığı hasar "Grit" olarak birikir ve W ile devasa Kalkan + Gerçek Hasara dönüşür!',
     qName: 'Kroşe', qDesc: '+%32 Hareket Hızı kazanır ve sonraki 2 yumruğu hedefin Azami Canına göre ek hasar vurur.', qCd: 6.0, qCost: 0, qIcon: 'Q',
-    wName: 'Balyoz Yumruk', qDesc: 'Biriken tüm Grit kadar KALKAN kazanır ve önündeki alana devasa GERÇEK HASAR yumruğu patlatır!', wCd: 11.5, wCost: 0, wIcon: 'W',
-    eName: 'Yüz Kıran', qDesc: 'Çevresindeki rakipleri birbirine çarptırarak kendine çeker ve 1.0 sn sersemletir.', eCd: 10.5, eCost: 0, eIcon: 'E',
+    wName: 'Balyoz Yumruk', wDesc: 'Biriken tüm Grit kadar KALKAN kazanır ve önündeki alana devasa GERÇEK HASAR yumruğu patlatır!', wCd: 11.5, wCost: 0, wIcon: 'W',
+    eName: 'Yüz Kıran', eDesc: 'Çevresindeki rakipleri birbirine çarptırarak kendine çeker ve 1.0 sn sersemletir.', eCd: 10.5, eCost: 0, eIcon: 'E',
     rName: 'Gösteri Zamanı', rDesc: 'Rakibi kavrayıp ileri doğru yere çalarak Azami Cana dayalı yıkıcı alan hasarı ve %75 yavaşlatma vurur!', rCd: 34.0, rCost: 0, rIcon: 'R',
     recBuild: ['guard_horn', 'boots_zerk', 'heartsteel', 'sundered_sky', 'warmogs', 'trinity'],
     recAugs: ['goliath', 'quest_heartsteel', 'heavy_hitter', 'quest_king_me', 'snowball_nova', 'endless_decimation', 'ocean_soul']
@@ -2030,9 +2030,9 @@ const CHAMP_SPECS = {
     hp: 1700, mana: 480, speed: 170, range: 65, baseAD: 66, baseAP: 20, atkSpeed: 0.82, armor: 64,
     pName: 'Güneş Işığı', pDesc: 'Yetenekler rakipleri Güneş Işığı ile işaretler; takım arkadaşlarının vuruşları işareti patlatarak ek büyü hasarı verir.',
     qName: 'Şafak Kalkanı', qDesc: 'Saldırı sayacını sıfırlar; sonraki vuruş kalkanıyla rakibi 1.1 sn SERSEMLETİR (Stun).', qCd: 5.5, qCost: 35, qIcon: 'Q',
-    wName: 'Tutulma', qDesc: '3.5 sn boyunca +45 Zırh ve +260 Kalkan kazanır, çevresine güneş patlaması hasarı verir.', wCd: 10.0, wCost: 45, wIcon: 'W',
-    eName: 'Ufuk Kılıcı', qDesc: 'Güneş kılıcını fırlatır; isabet ettiği son rakip şampiyona ATILIR ve onu 0.65 sn yerine mıhlar.', eCd: 9.0, eCost: 45, eIcon: 'E',
-    rName: 'Güneş Patlaması', qDesc: 'Gökten güneş sütunu indirerek merkezdeki tüm rakipleri 1.4 sn SERSEMLETİR ve yakar!', rCd: 34.0, rCost: 80, rIcon: 'R',
+    wName: 'Tutulma', wDesc: '3.5 sn boyunca +45 Zırh ve +260 Kalkan kazanır, çevresine güneş patlaması hasarı verir.', wCd: 10.0, wCost: 45, wIcon: 'W',
+    eName: 'Ufuk Kılıcı', eDesc: 'Güneş kılıcını fırlatır; isabet ettiği son rakip şampiyona ATILIR ve onu 0.65 sn yerine mıhlar.', eCd: 9.0, eCost: 45, eIcon: 'E',
+    rName: 'Güneş Patlaması', rDesc: 'Gökten güneş sütunu indirerek merkezdeki tüm rakipleri 1.4 sn SERSEMLETİR ve yakar!', rCd: 34.0, rCost: 80, rIcon: 'R',
     recBuild: ['guard_horn', 'boots_sorc', 'heartsteel', 'sunfire', 'thornmail', 'jaksho'],
     recAugs: ['goliath', 'quest_heartsteel', 'snowball_nova', 'heavy_hitter', 'ocean_soul', 'poro_ambush', 'eureka']
   },
@@ -2045,9 +2045,9 @@ const CHAMP_SPECS = {
     hp: 1030, mana: 580, speed: 172, range: 245, baseAD: 54, baseAP: 38, atkSpeed: 0.86, armor: 29,
     pName: 'Haşmetli Evrim', pDesc: 'Şampiyonlara isabet eden yetenekler ve alt etmeler kalıcı AP kazandırarak Hexçekirdeği geliştirir.',
     qName: 'Güç Aktarımı', qDesc: 'Enerji patlaması atarak +185 Kalkan ve +%30 Hız kazanır; sonraki normal saldırısını lazer deşarjına dönüştürür.', qCd: 6.5, qCost: 45, qIcon: 'Q',
-    wName: 'Çekim Alanı', qDesc: 'Çekim alanı kurarak rakipleri %45 yavaşlatır ve 1.2 sn sersemletir.', wCd: 12.0, wCost: 55, wIcon: 'W',
-    eName: 'Ölüm Işını', qDesc: 'Zemini boydan boya yaran Hextech ölüm lazeri ve artçı patlama ateşler.', eCd: 7.5, eCost: 60, eIcon: 'E',
-    rName: 'Kaos Fırtınası', qDesc: 'En yakındaki rakip şampiyonu OTOMATİK TAKİP EDEN ve sürekli yıldırım çakan Kaos Fırtınası çağırır!', rCd: 36.0, rCost: 100, rIcon: 'R',
+    wName: 'Çekim Alanı', wDesc: 'Çekim alanı kurarak rakipleri %45 yavaşlatır ve 1.2 sn sersemletir.', wCd: 12.0, wCost: 55, wIcon: 'W',
+    eName: 'Ölüm Işını', eDesc: 'Zemini boydan boya yaran Hextech ölüm lazeri ve artçı patlama ateşler.', eCd: 7.5, eCost: 60, eIcon: 'E',
+    rName: 'Kaos Fırtınası', rDesc: 'En yakındaki rakip şampiyonu OTOMATİK TAKİP EDEN ve sürekli yıldırım çakan Kaos Fırtınası çağırır!', rCd: 36.0, rCost: 100, rIcon: 'R',
     recBuild: ['guard_orb', 'boots_sorc', 'ludens', 'liandry', 'rabadon', 'zhonya'],
     recAugs: ['eureka', 'witchful_thinking', 'phenomenal_evil', 'jeweled_gauntlet', 'triple_q', 'quest_wooglets', 'ultimate_bot']
   }
@@ -2138,32 +2138,32 @@ const MAYHEM_AUGMENTS = [
   {
     id: 'quest_wooglets', name: 'Görev: Wooglet\'in Cadı Şapkası', tier: 'quest', icon: 'WGL', imgUrl: `${DD_BASE}/item/3089.png`,
     desc: 'GÖREV: 4 Alt Etme alarak Wooglet\'in Cadı Şapkasını işle (+140 YG, +%35 Toplam Hasar ve Can %30 altına indiğinde otomatik 450 Kalkan).',
-    apply: (c) => { c.bonusAP += 50; c.quest = { id: 'wooglets', name: 'Wooglet\'in Cadı Şapkası', progress: 0, goal: 4, done: false }; }
+    apply: (c) => { c.bonusAP += 50; c.quest = { id: 'wooglets', name: 'Wooglet\'in Cadı Şapkası', progress: 0, goal: 4, done: false }; recalcStats(c); }
   },
   {
     id: 'quest_heartsteel', name: 'Görev: Çelikten Kalp', tier: 'quest', icon: 'HRT', imgUrl: `${DD_BASE}/item/3084.png`,
     desc: 'GÖREV: Rakip şampiyonlara 10 kez vurarak görevi tamamla (+1.100 Azami Can ve saldırılar Azami Canın %4\'ü kadar ek hasar vurur).',
-    apply: (c) => { c.maxHp += 350; c.hp += 350; c.quest = { id: 'heartsteel', name: 'Çelikten Kalp', progress: 0, goal: 10, done: false }; }
+    apply: (c) => { c.permBonusHp = (c.permBonusHp || 0) + 350; c.quest = { id: 'heartsteel', name: 'Çelikten Kalp', progress: 0, goal: 10, done: false }; recalcStats(c); }
   },
   {
     id: 'jeweled_gauntlet', name: 'Mücevherli Eldiven', tier: 'prismatic', icon: 'JWL', imgUrl: `${DD_BASE}/item/3157.png`,
     desc: 'PRİZMATİK: Yeteneklerin Kritik Vuruş yapabilir! +%40 Kritik Vuruş İhtimali ve %215 Kritik Hasar kazandırır.',
-    apply: (c) => { c.critChance = Math.min(1, c.critChance + 0.40); c.critMult = Math.max(c.critMult, 2.15); c.spellCrit = true; }
+    apply: (c) => { c.spellCrit = true; recalcStats(c); }
   },
   {
     id: 'eureka', name: 'Evreka', tier: 'prismatic', icon: 'ERK', imgUrl: `${DD_BASE}/item/3115.png`,
     desc: 'PRİZMATİK: +45 Yetenek Hızı (-%30 bekleme süresi) ve +45 SG / +60 YG kazandırır.',
-    apply: (c) => { c.cdrMultiplier *= 0.72; c.bonusAD += 45; c.bonusAP += 60; c.haste += 45; }
+    apply: (c) => { c.bonusAD += 45; c.bonusAP += 60; c.haste += 45; recalcStats(c); }
   },
   {
     id: 'goliath', name: 'Golyat (Devleşme)', tier: 'prismatic', icon: 'GOL', imgUrl: `${DD_BASE}/item/3748.png`,
     desc: 'PRİZMATİK: Devasa bir güce ulaş! +950 Azami Can, +%35 Toplam Hasar ve +%30 Şampiyon Boyutu kazandırır.',
-    apply: (c) => { c.maxHp += 950; c.hp += 950; c.damageMultiplier += 0.35; c.r = Math.round(c.r * 1.28); }
+    apply: (c) => { c.permBonusHp = (c.permBonusHp || 0) + 950; c.damageMultiplier += 0.35; c.r = Math.round(c.r * 1.28); recalcStats(c); }
   },
   {
     id: 'mystic_punch', name: 'Mistik Yumruk', tier: 'prismatic', icon: 'MYS', imgUrl: `${DD_BASE}/item/3078.png`,
     desc: 'PRİZMATİK: Normal saldırılar tüm yetenek bekleme sürelerini (Q, W, E, R) 0.65 saniye azaltır ve +%18 Saldırı Hızı verir.',
-    apply: (c) => { c.hitCdr = (c.hitCdr || 0) + 0.65; c.atkSpeed *= 1.18; }
+    apply: (c) => { c.hitCdr = (c.hitCdr || 0) + 0.65; recalcStats(c); }
   },
   {
     id: 'endless_decimation', name: 'Sonsuz Yıkım', tier: 'prismatic', icon: 'DEC', imgUrl: `${DD_BASE}/item/6692.png`,
@@ -2173,12 +2173,12 @@ const MAYHEM_AUGMENTS = [
   {
     id: 'scoped_weapons', name: 'Dürbünlü Silahlar', tier: 'gold', icon: 'SCP', imgUrl: `${DD_BASE}/item/3094.png`,
     desc: 'ALTIN: +50 Saldırı Menzili (Yakın dövüşçüler için +25) ve +%30 Saldırı Hızı kazandırır.',
-    apply: (c) => { c.atkSpeed *= 1.30; recalcStats(c); }
+    apply: (c) => { recalcStats(c); }
   },
   {
     id: 'thread_needle', name: 'İğne Deliği', tier: 'gold', icon: 'PEN', imgUrl: `${DD_BASE}/item/3036.png`,
     desc: 'ALTIN: Tüm atışların rakipleri deler ve +%25 Zırh Delme ile Büyü Nüfuzu kazandırır.',
-    apply: (c) => { c.piercing = true; c.damageMultiplier += 0.22; }
+    apply: (c) => { c.piercing = true; c.damageMultiplier += 0.22; recalcStats(c); }
   },
   {
     id: 'executioner', name: 'Cellat', tier: 'gold', icon: 'EXE', imgUrl: `${DD_BASE}/item/6676.png`,
@@ -2188,7 +2188,7 @@ const MAYHEM_AUGMENTS = [
   {
     id: 'phenomenal_evil', name: 'Olağanüstü Kötülük', tier: 'gold', icon: 'EVL', imgUrl: `${DD_BASE}/item/6655.png`,
     desc: 'ALTIN: Anında +50 YG verir ve her şampiyon alt etmesi kalıcı olarak +%12 Hasar Artışı kazandırır.',
-    apply: (c) => { c.bonusAP += 50; c.killDmgBonus = (c.killDmgBonus || 0) + 0.12; }
+    apply: (c) => { c.bonusAP += 50; c.killDmgBonus = (c.killDmgBonus || 0) + 0.12; recalcStats(c); }
   },
   {
     id: 'ocean_soul', name: 'Okyanus Ejderi Ruhu', tier: 'silver', icon: 'OCN', imgUrl: `${DD_BASE}/item/3065.png`,
@@ -2198,17 +2198,17 @@ const MAYHEM_AUGMENTS = [
   {
     id: 'deft_hands', name: 'Hünerli Eller', tier: 'silver', icon: 'DFT', imgUrl: `${DD_BASE}/item/3046.png`,
     desc: 'GÜMÜŞ: +%28 Saldırı Hızı ve +%10 Hareket Hızı kazandırır.',
-    apply: (c) => { c.atkSpeed *= 1.28; c.speed *= 1.10; }
+    apply: (c) => { recalcStats(c); }
   },
   {
     id: 'heavy_hitter', name: 'Ağır Siklet', tier: 'silver', icon: 'HVY', imgUrl: `${DD_BASE}/item/3053.png`,
     desc: 'GÜMÜŞ: +450 Azami Can verir ve normal saldırıların Azami Canının %4\'ü kadar ek hasar vurur.',
-    apply: (c) => { c.maxHp += 450; c.hp += 450; c.hpOnHit = 0.04; }
+    apply: (c) => { c.permBonusHp = (c.permBonusHp || 0) + 450; c.hpOnHit = (c.hpOnHit || 0) + 0.04; recalcStats(c); }
   },
   {
     id: 'witchful_thinking', name: 'Cadı Düşüncesi', tier: 'silver', icon: 'WTC', imgUrl: `${DD_BASE}/item/3135.png`,
     desc: 'GÜMÜŞ: +80 Yetenek Gücü ve +25 Yetenek Hızı kazandırır.',
-    apply: (c) => { c.bonusAP += 80; c.cdrMultiplier *= 0.80; c.haste += 25; }
+    apply: (c) => { c.bonusAP += 80; c.haste += 25; recalcStats(c); }
   }
 ];
 
@@ -2567,6 +2567,7 @@ function createChamp(team, idx, specId, isPlayer = false, customName = null, dSp
     jhinAmmo: 4, jhinReloadTimer: 0, petriciteStacks: 0, leeFlurry: 0, leeQTarget: null, leeQTimer: 0,
     vayneQReady: false, vayneUltTimer: 0, settGrit: 0, settQHits: 0, leonaQReady: false, leonaWTimer: 0,
     viktorQReady: false, threshQTarget: null, threshQTimer: 0, thunderclapTimer: 0, ezPassiveStacks: 0, ezPassiveTimer: 0,
+    burnOwner: -1, bleedOwner: -1, deathMarkOwner: -1, sunlightOwner: -1, permBonusHp: 0,
     inBush: false, stealthTimer: 0, revealTimer: 0,
     stunTimer: 0, rootTimer: 0, slowTimer: 0, slowFactor: 0,
     invulnTimer: 1.0, dead: false, respawnTimer: 0,
@@ -2584,7 +2585,7 @@ function createChamp(team, idx, specId, isPlayer = false, customName = null, dSp
 
 function recalcStats(c) {
   const lvlBonus = c.level - 1;
-  let hpAdd = lvlBonus * 90;
+  let hpAdd = lvlBonus * 90 + (c.permBonusHp || 0);
   let adAdd = lvlBonus * 4.0 + c.bonusAD;
   let apAdd = c.bonusAP;
   let apMult = 1.0;
@@ -2600,10 +2601,17 @@ function recalcStats(c) {
   let manaRegenAdd = (c.baseMana <= 200) ? 10.0 : (2.6 + lvlBonus * 0.20);
   let armorPenAdd = 0;
 
+  if (c.augments && c.augments.length > 0) {
+    if (c.augments.some(a => a.id === 'mystic_punch')) asBonus += 0.18;
+    if (c.augments.some(a => a.id === 'scoped_weapons')) asBonus += 0.30;
+    if (c.augments.some(a => a.id === 'deft_hands')) { asBonus += 0.28; msAdd += Math.round(c.baseSpeed * 0.10); }
+  }
+
   c.hasLudens = false; c.hasBurn = false; c.hasCollector = false;
   c.hasKraken = false; c.hasBork = false; c.hasAxiom = false; c.hasHeartsteelItem = false;
   c.hasZhonya = false; c.hasSunfire = false; c.hasThornmail = false; c.hasWarmogHeart = false;
   c.hasNashors = false; c.hasGuinsoo = false;
+  c.spellCrit = Boolean(c.augments && c.augments.some(a => a.id === 'jeweled_gauntlet'));
 
   for (const item of c.items) {
     const s = item.stats || {};
@@ -2963,9 +2971,10 @@ function checkQuestCompletion(c) {
     SFX.augmentOpen();
     if (c.quest.id === 'king_me') {
       c.monarch = true;
-      c.maxHp += 750; c.hp += 750;
+      c.permBonusHp = (c.permBonusHp || 0) + 750;
       c.damageMultiplier += 0.35;
       c.r = Math.round(c.r * 1.22);
+      recalcStats(c);
       if (c.isPlayer) showAnnouncement('👑 GÖREV TAMAMLANDI: KRAL İLAN ET!', '#fbbf24', 'Uçurum Hükümdarı olarak taç giydin!');
     } else if (c.quest.id === 'wooglets') {
       c.bonusAP += 140;
@@ -2974,7 +2983,7 @@ function checkQuestCompletion(c) {
       recalcStats(c);
       if (c.isPlayer) showAnnouncement('🧙 GÖREV TAMAMLANDI: WOOGLET\'İN CADI ŞAPKASI!', '#c084fc', '+140 YG ve Cankurtaran Büyü Kalkanı Açıldı!');
     } else if (c.quest.id === 'heartsteel') {
-      c.maxHp += 1100; c.hp += 1100;
+      c.permBonusHp = (c.permBonusHp || 0) + 1100;
       c.hpOnHit = (c.hpOnHit || 0) + 0.04;
       recalcStats(c);
       if (c.isPlayer) showAnnouncement('❤️‍🔥 GÖREV TAMAMLANDI: ÇELİKTEN KALP!', '#2dd4bf', '+1.100 Devasa İlave Can Açıldı!');
@@ -3043,9 +3052,10 @@ function dealDamage(target, rawDmg, ownerIdx, opts = {}) {
     return;
   }
 
-  const owner = ownerIdx >= 0 ? G.champions[ownerIdx] : null;
-  if (owner && owner.level) owner.lastCombatTime = G.time;
-  if (target && target.level) target.lastCombatTime = G.time;
+  const owner = (typeof ownerIdx === 'number' && ownerIdx >= 0 && G.champions[ownerIdx]) ? G.champions[ownerIdx] : null;
+  const isDirectSpellHit = Boolean(opts.isSpell && !opts.isDot && !opts.isProc);
+  if (owner && owner.level && !opts.isDot) owner.lastCombatTime = G.time;
+  if (target && target.level && !opts.isDot) target.lastCombatTime = G.time;
   let dmg = rawDmg;
   let isCrit = false;
 
@@ -3123,8 +3133,8 @@ function dealDamage(target, rawDmg, ownerIdx, opts = {}) {
         addParticles(target.x, target.y, '#e2e8f0', 12, 145, 4);
       }
     }
-    // Viktor Glorious Evolution (+2 AP on spell hit against champions)
-    if (opts.isSpell && owner.specId === 'viktor' && target.level) {
+    // Viktor Glorious Evolution (+2 AP on direct spell hit against enemy champions; max 1 stack per cast per target)
+    if (isDirectSpellHit && !opts.noApStack && owner.specId === 'viktor' && target.level && target.team !== owner.team) {
       owner.bonusAP += 2;
       recalcStats(owner);
     }
@@ -3134,7 +3144,7 @@ function dealDamage(target, rawDmg, ownerIdx, opts = {}) {
     if (!opts.isSpell && owner.hasBork && target.level) dmg += target.hp * 0.06;
 
     // Poro Ambush Augment
-    if (owner.poroAmbushReady && target.level) {
+    if (!opts.isDot && owner.poroAmbushReady && target.level) {
       owner.poroAmbushReady = false;
       dmg += 220;
       target.stunTimer = Math.max(target.stunTimer || 0, 0.8);
@@ -3143,18 +3153,19 @@ function dealDamage(target, rawDmg, ownerIdx, opts = {}) {
     }
 
     // Shark Storm Augment
-    if (owner.sharkStorm && target.level && target.hp / target.maxHp < 0.55 && (!target._sharkCd || G.time > target._sharkCd)) {
+    if (!opts.isDot && owner.sharkStorm && target.level && target.hp / target.maxHp < 0.55 && (!target._sharkCd || G.time > target._sharkCd)) {
       target._sharkCd = G.time + 3.5;
       dmg += 140;
       addFloatText(target.x, target.y - 28, '🦈 KÖPEKBALIĞI FIRTINASI!', '#2dd4bf', 14);
       addParticles(target.x, target.y, '#2dd4bf', 12, 140, 4);
     }
 
-    // Heartsteel Item or Quest proc on Champion hit
-    if (target.level && (owner.hasHeartsteelItem || (owner.quest && owner.quest.id === 'heartsteel'))) {
+    // Heartsteel Item or Quest proc on Champion basic-attack/direct hit (not DoT ticks)
+    if (!opts.isDot && !opts.isProc && target.level && (owner.hasHeartsteelItem || (owner.quest && owner.quest.id === 'heartsteel'))) {
       if (!target._hsCd || G.time > target._hsCd) {
         target._hsCd = G.time + 4.5;
-        owner.maxHp += 35; owner.hp += 35;
+        owner.permBonusHp = (owner.permBonusHp || 0) + 35;
+        recalcStats(owner);
         dmg += 95;
         if (owner.isPlayer) SFX.heartsteelClang();
         addFloatText(owner.x, owner.y - 25, '+35 AZAMİ CAN (ÇELİKKALP!)', '#ef4444', 13);
@@ -3165,21 +3176,21 @@ function dealDamage(target, rawDmg, ownerIdx, opts = {}) {
       }
     }
 
-    // Veiga Passive AP stack on spell hit
-    if (opts.isSpell && owner.specId === 'veiga' && target.level) {
+    // Veigar Passive AP stack on direct spell hit
+    if (isDirectSpellHit && !opts.noApStack && owner.specId === 'veiga' && target.level && target.team !== owner.team) {
       owner.bonusAP += 3;
       recalcStats(owner);
     }
 
-    // Luden’s Companion splash
-    if (opts.isSpell && owner.hasLudens && (!owner._ludensCd || G.time > owner._ludensCd)) {
+    // Luden’s Companion splash (only on direct spell hit, not DoTs)
+    if (isDirectSpellHit && owner.hasLudens && (!owner._ludensCd || G.time > owner._ludensCd)) {
       owner._ludensCd = G.time + 3.5;
       dmg += 110;
       addParticles(target.x, target.y, '#a855f7', 10, 120, 4);
     }
 
-    // Liandry Burn
-    if (opts.isSpell && owner.hasBurn && target.level) {
+    // Liandry Burn (only applied by direct spell hits — never refreshes itself on burn ticks!)
+    if (isDirectSpellHit && owner.hasBurn && target.level && target.team !== owner.team) {
       target.burnTimer = 3.0;
       target.burnOwner = ownerIdx;
     }
@@ -3408,6 +3419,11 @@ function handleChampKilled(victim, killer) {
         recalcStats(ch);
         addFloatText(ch.x, ch.y - 26, '+1 RUH (+3 ZIRH / +4 YG)', '#10b981', 13);
       }
+      if (ch.specId === 'viktor') {
+        ch.bonusAP += 8;
+        recalcStats(ch);
+        addFloatText(ch.x, ch.y - 26, 'HAŞMETLİ EVRİM (+8 YG)', '#f59e0b', 13);
+      }
     }
   }
 
@@ -3582,7 +3598,7 @@ function performAutoAttack(idx, target) {
         }
         if (t.ezreWMarked) {
           t.ezreWMarked = false;
-          dealDamage(t, 145 + c.ap * 0.65, idx, { isSpell: true });
+          dealDamage(t, 145 + c.ap * 0.65, idx, { isSpell: true, isProc: true });
           c.mana = Math.min(c.maxMana, c.mana + 60);
           addFloatText(t.x, t.y - 24, 'ESSENCE FLUX!', '#fbbf24', 13);
         }
@@ -3752,7 +3768,7 @@ function castAbility(idx, key, mx, my) {
           c.rangerTimer = Math.max(c.rangerTimer || 0, 3.0);
           if (t.ezreWMarked) {
             t.ezreWMarked = false;
-            dealDamage(t, 145 + c.ap * 0.65, idx, { isSpell: true });
+            dealDamage(t, 145 + c.ap * 0.65, idx, { isSpell: true, isProc: true });
             c.mana = Math.min(c.maxMana, c.mana + 60);
           }
         }});
@@ -4096,7 +4112,7 @@ function castAbility(idx, key, mx, my) {
         color: '#d946ef', r: 11, shape: 'rocket',
         onHit: (t) => {
           t.revealTimer = 4.0;
-          dealDamage(t, 10, idx, { isSpell: true, addPlasmaStacks: pStacks });
+          dealDamage(t, 10, idx, { isSpell: true, isProc: true, addPlasmaStacks: pStacks });
           if (t.level && c.kaisaWEvolved) {
             c.wTimer *= 0.35;
             addFloatText(c.x, c.y - 24, 'EVOLVED W (-65% CD)!', '#d946ef', 12);
@@ -4270,7 +4286,7 @@ function castAbility(idx, key, mx, my) {
         spawnProj({ x: c.x, y: c.y, ang: boltAng, speed: 1180, maxRange: 310, dmg: 130 + c.ap * 0.65, isSpell: true, team: c.team, ownerIdx: idx, color: '#fbbf24', r: 8, homingTarget: nearEn, onHit: t => {
           if (t.ezreWMarked) {
             t.ezreWMarked = false;
-            dealDamage(t, 145 + c.ap * 0.65, idx, { isSpell: true });
+            dealDamage(t, 145 + c.ap * 0.65, idx, { isSpell: true, isProc: true });
             c.mana = Math.min(c.maxMana, c.mana + 60);
           }
         }});
@@ -4386,10 +4402,10 @@ function castAbility(idx, key, mx, my) {
           t.x = newX;
           t.y = clamp(rawY, BRIDGE_TOP + 24, BRIDGE_BOT - 24);
           t.targetX = t.x; t.targetY = t.y;
-          dealDamage(t, 10, idx, { isSpell: true, addVayneBolt: true });
+          dealDamage(t, 10, idx, { isSpell: true, isProc: true, addVayneBolt: true });
           if (hitWall && (!t.ccImmuneTimer || t.ccImmuneTimer <= 0)) {
             t.stunTimer = 1.55;
-            dealDamage(t, 165 + c.ad * 1.05, idx, { isSpell: true });
+            dealDamage(t, 165 + c.ad * 1.05, idx, { isSpell: true, isProc: true });
             addFloatText(t.x, t.y - 28, 'CONDEMNED TO WALL!', '#f43f5e', 15);
           }
         }
@@ -4564,7 +4580,7 @@ function castAbility(idx, key, mx, my) {
         }
         spawnProj({ x: c.x, y: c.y, ang: a, speed: 1080, maxRange: 340, maxHits: 1, homingTarget: bestEn, dmg: 280 + c.ap * 1.0, isSpell: true, team: c.team, ownerIdx: idx, color: '#c084fc', r: 17, shape: 'orb', onHit: t => {
           const missMult = clamp(1 - (t.hp / Math.max(1, t.maxHp)), 0, 1);
-          if (missMult > 0.1) dealDamage(t, (220 + c.ap * 0.75) * missMult, idx, { isSpell: true });
+          if (missMult > 0.1) dealDamage(t, (220 + c.ap * 0.75) * missMult, idx, { isSpell: true, isProc: true });
         }});
       } else if (c.specId === 'ashela') {
         // Ashe R: Enchanted Crystal Arrow — passes through minions (champOnly: true), stun scales with distance!
@@ -4577,7 +4593,13 @@ function castAbility(idx, key, mx, my) {
         }});
       } else if (c.specId === 'kata') {
         if (oa === 0) {
-          spawnAoE({ x: c.x, y: c.y, radius: 200, dmg: 130 + c.ap * 0.45 + c.ad * 0.40, team: c.team, ownerIdx: idx, color: 'rgba(225,29,72,0.55)', dur: 1.5, tick: true });
+          const lotus = {
+            x: c.x, y: c.y, radius: 200, dmg: 95 + c.ap * 0.35 + c.ad * 0.35,
+            isSpell: true, isTrue: false, team: c.team, ownerIdx: idx,
+            color: 'rgba(225,29,72,0.55)', timer: 1.5, maxTimer: 1.5,
+            delay: 0, hit: false, tick: true, tickTimer: 0.45, followOwner: true
+          };
+          G.aoes.push(lotus);
         }
         for (let k = 0; k < 6; k++) {
           spawnProj({ x: c.x, y: c.y, ang: a + (k * Math.PI / 3), speed: 1050, maxRange: 205, dmg: 185 + c.ap * 0.70, isSpell: true, team: c.team, ownerIdx: idx, color: '#e11d48', r: 8, pierce: true, shape: 'blade' });
@@ -4639,7 +4661,7 @@ function castAbility(idx, key, mx, my) {
                 onHit: t => {
                   t.slowTimer = 1.5; t.slowFactor = 0.65;
                   const missDmg = (t.maxHp - t.hp) * (isFourth ? 0.24 : 0.12);
-                  dealDamage(t, missDmg, idx, { isSpell: true });
+                  dealDamage(t, missDmg, idx, { isSpell: true, isProc: true });
                   if (isFourth) addFloatText(t.x, t.y - 28, 'CURTAIN CALL 4TH SHOT!', '#fbbf24', 16);
                 }
               });
@@ -4719,9 +4741,9 @@ function castAbility(idx, key, mx, my) {
         const storm = {
           x: clamp(c.x + Math.cos(a) * d, 80, WORLD_W - 80),
           y: clamp(c.y + Math.sin(a) * d, BRIDGE_TOP + 24, BRIDGE_BOT - 24),
-          radius: 155, dmg: 115 + c.ap * 0.45, isSpell: true, isTrue: false,
+          radius: 155, dmg: 150 + c.ap * 0.50, tickDmg: 58 + c.ap * 0.22, isSpell: true, isTrue: false,
           team: c.team, ownerIdx: idx, color: 'rgba(245,158,11,0.48)',
-          timer: 3.5, maxTimer: 3.5, delay: 0, hit: false, tick: true, tickTimer: 0.45,
+          timer: 3.5, maxTimer: 3.5, delay: 0, hit: false, tick: true, tickTimer: 0.50,
           chasingStorm: true
         };
         G.aoes.push(storm);
@@ -5399,19 +5421,39 @@ function updateGame(dt) {
       if (c.deathMarkTimer <= 0) {
         const popDmg = 220 + (c.deathMarkStored || 0) * 0.55;
         c.deathMarkStored = 0;
-        dealDamage(c, popDmg, c.deathMarkOwner, { isSpell: true });
+        dealDamage(c, popDmg, typeof c.deathMarkOwner === 'number' ? c.deathMarkOwner : -1, { isSpell: true, isProc: true });
         addFloatText(c.x, c.y - 32, '🩸 ÖLÜM İŞARETİ PATLADI!', '#ef4444', 16);
       }
     }
 
-    // Burn / Bleed DoT
+    // Burn / Bleed DoT (uses deterministic 0.5s tick interval and isDot: true so it never self-refreshes Liandry or stacks AP!)
     if (c.burnTimer > 0) {
       c.burnTimer -= dt;
-      if (Math.random() < dt * 3) dealDamage(c, 28 + c.maxHp * 0.015, c.burnOwner, { isSpell: true });
+      c._burnTickAccum = (c._burnTickAccum || 0) + dt;
+      if (c._burnTickAccum >= 0.5) {
+        c._burnTickAccum -= 0.5;
+        dealDamage(c, 16 + c.maxHp * 0.01, typeof c.burnOwner === 'number' ? c.burnOwner : -1, { isSpell: true, isDot: true });
+      }
+    } else {
+      c._burnTickAccum = 0;
     }
     if (c.bleedTimer > 0) {
       c.bleedTimer -= dt;
-      if (Math.random() < dt * 3) dealDamage(c, 22, c.bleedOwner, { isSpell: true });
+      c._bleedTickAccum = (c._bleedTickAccum || 0) + dt;
+      if (c._bleedTickAccum >= 0.5) {
+        c._bleedTickAccum -= 0.5;
+        const bOwner = (typeof c.bleedOwner === 'number' && c.bleedOwner >= 0) ? G.champions[c.bleedOwner] : null;
+        const bStacks = c.dariusBleed || 1;
+        const bDmg = 10 + bStacks * 5 + (bOwner ? bOwner.ad * 0.08 : 0);
+        dealDamage(c, bDmg, typeof c.bleedOwner === 'number' ? c.bleedOwner : -1, { isSpell: true, isDot: true });
+      }
+    } else {
+      c.dariusBleed = 0;
+      c._bleedTickAccum = 0;
+    }
+    if (c.specId === 'daren' && c.bleedStacks > 0 && (c.noxianMightTimer || 0) <= 0 && (G.time - (c.lastCombatTime || -99) > 5.0)) {
+      c.bleedStacks = 0;
+      recalcStats(c);
     }
 
     // Cooldowns
@@ -5561,11 +5603,15 @@ function updateGame(dt) {
     }
 
     c.castLockTimer = Math.max(0, (c.castLockTimer || 0) - dt);
-    // Sunfire Aegis Immolate Aura
-    if (c.hasSunfire && Math.random() < dt * 2.5) {
-      for (const en of G.champions) {
-        if (!en.dead && en.team !== c.team && dist(c.x, c.y, en.x, en.y) <= 115) {
-          dealDamage(en, 22 + c.maxHp * 0.012, i, { isSpell: true });
+    // Sunfire Aegis Immolate Aura (deterministic 0.5s tick, isDot: true so it never procs spell passives)
+    if (c.hasSunfire) {
+      c._sunfireTick = (c._sunfireTick || 0) + dt;
+      if (c._sunfireTick >= 0.5) {
+        c._sunfireTick -= 0.5;
+        for (const en of G.champions) {
+          if (!en.dead && en.team !== c.team && dist(c.x, c.y, en.x, en.y) <= 115) {
+            dealDamage(en, 18 + c.maxHp * 0.012, i, { isSpell: true, isDot: true });
+          }
         }
       }
     }
@@ -5696,9 +5742,14 @@ function updateGame(dt) {
     G.daggers = G.daggers.filter(dg => dg.timer > 0);
   }
 
-  // AoEs Update (including Viktor's Chasing Chaos Storm!)
+  // AoEs Update (including Viktor's Chasing Chaos Storm & Katarina's Death Lotus!)
   for (const a of G.aoes) {
     a.timer -= dt;
+    if (a.followOwner && typeof a.ownerIdx === 'number' && G.champions[a.ownerIdx]) {
+      const ow = G.champions[a.ownerIdx];
+      if (ow.dead || ow.stunTimer > 0) { a.timer = 0; continue; }
+      a.x = ow.x; a.y = ow.y;
+    }
     if (a.chasingStorm) {
       let bestEn = null, minD = 550;
       for (const en of G.champions) {
@@ -5718,21 +5769,26 @@ function updateGame(dt) {
       if (a.tickTimer <= 0) {
         a.tickTimer = 0.45;
         a.hit = false;
+        a.isSubTick = true;
       }
     }
     if (!a.hit) {
       a.hit = true;
+      if (!a.apStackedSet) a.apStackedSet = new Set();
+      const curDmg = (a.isSubTick && a.tickDmg !== undefined) ? a.tickDmg : a.dmg;
       for (const c of G.champions) {
         if (c.dead || c.team === a.team) continue;
         if (dist(a.x, a.y, c.x, c.y) <= a.radius + c.r) {
-          dealDamage(c, a.dmg, a.ownerIdx, { isSpell: true, isTrue: a.isTrue });
+          const alreadyStacked = a.apStackedSet.has(c.idx);
+          a.apStackedSet.add(c.idx);
+          dealDamage(c, curDmg, a.ownerIdx, { isSpell: true, isTrue: a.isTrue, noApStack: alreadyStacked });
           if (a.onHit) a.onHit(c);
         }
       }
       for (const m of G.minions) {
         if (m.dead || m.team === a.team) continue;
         if (dist(a.x, a.y, m.x, m.y) <= a.radius + m.r) {
-          dealDamage(m, a.dmg, a.ownerIdx, { isSpell: true, isTrue: a.isTrue });
+          dealDamage(m, curDmg, a.ownerIdx, { isSpell: true, isTrue: a.isTrue, noApStack: true });
         }
       }
     }
@@ -7328,7 +7384,7 @@ function applyPlayerAction(cIdx, act) {
         c.gold -= item.cost;
         const s = item.stats || {};
         if (s.oracle) c.oracleTimer = Math.max(c.oracleTimer || 0, s.oracle);
-        if (s.healNow) { c.maxHp += s.healNow; c.hp = Math.min(c.maxHp, c.hp + s.healNow); }
+        if (s.healNow) { c.permBonusHp = (c.permBonusHp || 0) + s.healNow; c.hp += s.healNow; }
         if (s.permAp) c.bonusAP += s.permAp;
         if (s.permAd) c.bonusAD += s.permAd;
         if (s.permHp) { c.baseHp += s.permHp; c.hp += s.permHp; }
