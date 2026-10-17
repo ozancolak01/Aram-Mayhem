@@ -811,7 +811,7 @@
     <h1 class="font-cinzel text-xl md:text-2xl font-black text-[#f0e6d2] tracking-wider mb-2">
       CİHAZ SEÇİMİ
     </h1>
-    <p class="text-xs text-[#a09b8c] mb-4">Kontrol şemasını ve arayüzü cihazına göre optimize eder.</p>
+    
     <div class="grid grid-cols-2 gap-3">
       <button onclick="selectInitialDevice('pc')" class="hex-btn-primary py-4 px-3 font-cinzel font-black text-sm uppercase">
         💻 BİLGİSAYAR
@@ -829,7 +829,7 @@
     <div class="w-12 h-12 mx-auto bg-[#091428] border-2 border-[#c8aa6e] flex items-center justify-center font-cinzel font-black text-xl text-[#c8aa6e]">⚔️</div>
     <div>
       <h2 class="font-cinzel text-xl md:text-2xl font-black text-[#f0e6d2] tracking-wider uppercase">SİHİRDAR ADINI SEÇ</h2>
-      <p class="text-xs text-[#a09b8c] mt-1">Sonsuz Uçurum lobilerinde ve skor tablosunda görünecek adın (Tarayıcıya kaydedilir, sonraki girişte tekrar sorulmaz).</p>
+      
     </div>
     <div class="space-y-3">
       <input id="initialSummonerNameInput" type="text" maxlength="16" placeholder="Örn: Faker, Caps, GeceAvcısı..." onkeydown="if(event.key==='Enter')confirmInitialSummonerName()" class="w-full bg-[#091428] border-2 border-[#785a28] focus:border-[#0ac8b9] px-3.5 py-2.5 text-sm font-bold text-[#f0e6d2] text-center outline-none">
@@ -857,7 +857,7 @@
         <span id="headerSummonerName" class="font-bold text-[#f0e6d2]">Sihirdar</span>
         <span class="text-[9px] text-[#c8aa6e]">✎</span>
       </button>
-      <button id="navLobbyBrowserBtn" onclick="switchLobbyView('browser')" class="hex-btn px-2.5 py-1 text-[11px] text-[#c8aa6e]" title="Özel Oyun Lobileri Listesi">
+      <button id="navLobbyBrowserBtn" onclick="leaveCurrentRoom()" class="hex-btn px-2.5 py-1 text-[11px] text-[#c8aa6e]" title="Özel Oyun Lobileri Listesi">
         🌐 Lobiler
       </button>
       <span id="lanStatusBadge" class="text-[10px] px-2 py-0.5 bg-[#091428] text-[#0ac8b9] border border-[#0ac8b9]/40 font-mono font-bold">ODA</span>
@@ -883,23 +883,23 @@
   <!-- STAGE 0: CUSTOM GAME LOBBIES BROWSER (LOBİ KUR / KATIL / CANLI MAÇLAR)  -->
   <!-- ═══════════════════════════════════════════════════════════════════════ -->
   <div id="lobbyBrowserStage" class="flex-1 flex flex-col gap-3 px-3 md:px-5 py-2.5 max-w-[1440px] w-full mx-auto">
-    <div class="hex-panel p-3 md:p-4 flex flex-wrap items-center justify-between gap-3">
-      <div>
-        <div class="flex items-center gap-2">
-          <span class="text-xs font-mono uppercase px-2 py-0.5 bg-[#091428] border border-[#0ac8b9] text-[#0ac8b9] font-bold">ÖZEL OYUN (CUSTOM GAME)</span>
-          <h2 class="font-cinzel text-base md:text-lg font-black text-[#f0e6d2] tracking-wider">SONSUZ UÇURUM LOBİLERİ &amp; CANLI MAÇLAR</h2>
-        </div>
-        <p class="text-[11px] text-[#a09b8c] mt-0.5">Açık lobilere katıl, yeni özel oyun kur veya devam eden maçlara botun yerine (mevcut seviyesi ve eşyalarıyla!) ya da izleyici olarak bağlan.</p>
+    <div class="hex-panel p-3 flex flex-wrap items-center justify-between gap-2.5">
+      <div class="flex items-center gap-2">
+        <span class="text-xs font-mono uppercase px-2 py-0.5 bg-[#091428] border border-[#0ac8b9] text-[#0ac8b9] font-bold">LOBİLER</span>
+        <input id="newRoomNameInput" type="text" maxlength="24" placeholder="Lobi Adı (Örn: 5v5 ARAM Odası)" class="bg-[#091428] border border-[#785a28] focus:border-[#0ac8b9] px-2.5 py-1.5 text-xs font-bold text-[#f0e6d2] outline-none w-48 md:w-60">
       </div>
-      <div class="flex flex-wrap items-center gap-2">
-        <button onclick="createNewCustomLobbyRoom()" class="hex-btn-primary px-4 py-2 font-cinzel text-xs font-black uppercase tracking-wider">
-          + YENİ ÖZEL LOBİ KUR / ODAYA GİR
+      <div class="flex flex-wrap items-center gap-1.5">
+        <button id="create5v5RoomBtn" onclick="createNewCustomLobbyRoom('5v5')" class="hex-btn-primary px-3.5 py-1.5 font-cinzel text-xs font-black uppercase tracking-wider">
+          + 5v5 LOBİ KUR
         </button>
-        <button onclick="quickStartSoloFromBrowser('5v5')" class="hex-btn px-3 py-2 text-xs text-[#0ac8b9]">
-          ⚡ Hızlı 5v5 Maç Kur
+        <button id="create3v3RoomBtn" onclick="createNewCustomLobbyRoom('3v3')" class="hex-btn px-3 py-1.5 text-xs text-[#0ac8b9]">
+          + 3v3 LOBİ KUR
         </button>
-        <button onclick="quickStartSoloFromBrowser('3v3')" class="hex-btn px-3 py-2 text-xs text-[#c8aa6e]">
-          ⚡ Hızlı 3v3 Maç Kur
+        <button id="create1v1RoomBtn" onclick="createNewCustomLobbyRoom('1v1')" class="hex-btn px-3 py-1.5 text-xs text-[#c8aa6e]">
+          + 1v1 (BOTSUZ) KUR
+        </button>
+        <button onclick="requestRoomsRefresh()" class="hex-btn px-2.5 py-1.5 text-xs text-[#f0e6d2]" title="Lobi Listesini Yenile">
+          ↻ Yenile
         </button>
       </div>
     </div>
@@ -946,15 +946,23 @@
       <span id="hostRoleNotice" class="hidden"></span>
       <span id="hostLockHint" class="hidden"></span>
 
+      <!-- Active Room Header & Leave Room Button -->
+      <div class="flex items-center justify-between border-b border-[#463714] pb-1.5">
+        <div class="flex items-center gap-1.5 min-w-0">
+          <span id="roomCodeBadge" class="text-[10px] font-mono px-1.5 py-0.5 bg-[#091428] border border-[#0ac8b9] text-[#0ac8b9] font-bold">ODA</span>
+          <span id="roomTitleText" class="font-cinzel font-black text-xs text-[#f0e6d2] truncate">Özel Lobi</span>
+        </div>
+        <button id="leaveRoomBtn" onclick="leaveCurrentRoom()" class="hex-btn px-2.5 py-1 text-[10px] text-[#e84057] border-[#881337] hover:border-[#e84057]">
+          ✕ Lobiden Çık
+        </button>
+      </div>
+
       <!-- Player Name & Team Switch -->
       <div class="flex items-center gap-2">
         <label class="hidden" id="lblSummoner">Ad:</label>
         <input id="summonerNameInput" type="text" value="Summoner" maxlength="16" placeholder="Sihirdar Adı" onchange="sendNameUpdate()" class="bg-[#091428] border border-[#785a28] px-2.5 py-1.5 text-xs font-bold text-[#f0e6d2] flex-1 outline-none focus:border-[#c8aa6e]">
         <button id="switchTeamBtn" onclick="requestSwitchTeam()" class="hex-btn px-3 py-1.5 text-xs text-[#0ac8b9]">
           Takım Değiştir
-        </button>
-        <button onclick="switchLobbyView('browser')" class="hex-btn px-2.5 py-1.5 text-xs text-[#c8aa6e]" title="Lobi Listesine Dön">
-          Lobiler
         </button>
       </div>
 
@@ -1070,6 +1078,9 @@
         </button>
         <button id="lockChampBtn" onclick="lockInMyChampion()" class="hex-btn-primary px-5 py-2 font-cinzel text-sm font-black tracking-wider uppercase">
           KİLİTLE
+        </button>
+        <button id="csLeaveRoomBtn" onclick="leaveCurrentRoom()" class="hex-btn px-2.5 py-2 text-xs text-[#e84057] border-[#881337]">
+          ✕ Çık
         </button>
       </div>
     </div>
@@ -1498,7 +1509,7 @@
     <div id="shopItemsContainer" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 overflow-y-auto pr-1 flex-1 max-h-[390px]"></div>
 
     <div class="mt-3 pt-2.5 border-t border-[#463714] flex flex-wrap items-center justify-between gap-2">
-      <div class="text-xs text-[#a09b8c] font-bold">ÇANTA (%70 altına satmak için eşyaya tıkla):</div>
+      <div class="text-xs text-[#a09b8c] font-bold">ÇANTA:</div>
       <div id="shopOwnedRow" class="flex items-center gap-2"></div>
     </div>
   </div>
@@ -2819,6 +2830,29 @@ function applyBotDifficultyProfile(c, aiDiff) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 let lobbySubView = 'browser'; // 'browser' | 'room'
+let currentRoomId = null;
+let currentRoomName = 'Özel Lobi';
+let roomHostId = -1;
+let roomHostToken = null;
+let serverRoomsList = [];
+let serverOnlinePlayers = [];
+
+function isMultiplayerClientMode() {
+  return Boolean(lanConnected && currentRoomId && !isLanHost);
+}
+
+function recomputeIsLanHost() {
+  if (!lanConnected || !currentRoomId) {
+    isLanHost = true;
+    return true;
+  }
+  isLanHost = Boolean(
+    (roomHostToken && myClientToken && roomHostToken === myClientToken) ||
+    (roomHostId > 0 && myPlayerId > 0 && roomHostId === myPlayerId)
+  );
+  return isLanHost;
+}
+
 
 function getSavedSummonerName() {
   try {
@@ -2873,26 +2907,95 @@ function confirmInitialSummonerName() {
   renderLobby();
 }
 
+function requestRoomsRefresh() {
+  if (lanConnected) sendWs({ type: 'get_rooms' });
+  renderLobby();
+}
+
 function switchLobbyView(view) {
   ensureAudio();
   lobbySubView = (view === 'room') ? 'room' : 'browser';
+  if (lobbySubView === 'browser' && lanConnected) {
+    sendWs({ type: 'get_rooms' });
+  }
   SFX.move();
   renderLobby();
 }
 
-function createNewCustomLobbyRoom() {
+function createNewCustomLobbyRoom(preset = '3v3') {
   ensureAudio();
-  lobbySubView = 'room';
-  SFX.augmentOpen();
+  const nameInp = document.getElementById('newRoomNameInput');
+  const myName = getSavedSummonerName() || document.getElementById('summonerNameInput').value.trim() || 'Sihirdar';
+  const roomName = (nameInp && nameInp.value.trim()) ? nameInp.value.trim().slice(0, 28) : `${myName} — ${preset.toUpperCase()} Lobi`;
+  if (nameInp) nameInp.value = '';
+  if (lanConnected) {
+    sendWs({
+      type: 'create_room',
+      name: roomName,
+      preset,
+      freePickMode: true,
+      aiDiff: document.getElementById('aiDiffSelect').value || 'normal'
+    });
+    lobbySubView = 'room';
+    SFX.augmentOpen();
+  } else {
+    currentRoomId = 'LOCAL';
+    currentRoomName = roomName;
+    lobbySubView = 'room';
+    if (preset === '5v5') quickFill5v5Bots();
+    else if (preset === '1v1') clearAllBots();
+    else quickFill3v3Bots();
+    SFX.augmentOpen();
+    renderLobby();
+  }
+}
+
+function joinCustomLobbyRoom(roomId) {
+  ensureAudio();
+  if (!roomId) return;
+  if (lanConnected) {
+    sendWs({ type: 'join_room', roomId });
+    lobbySubView = 'room';
+    SFX.augmentOpen();
+  } else {
+    lobbySubView = 'room';
+    renderLobby();
+  }
+}
+
+function leaveCurrentRoom() {
+  ensureAudio();
+  if (localChampSelectInterval) {
+    clearInterval(localChampSelectInterval);
+    localChampSelectInterval = null;
+  }
+  if (inGame) {
+    inGame = false;
+    isSpectatorMode = false;
+    document.getElementById('endGameModal').classList.add('hidden');
+    document.getElementById('gameHud').classList.add('hidden');
+    document.getElementById('lobbyScreen').classList.remove('hidden');
+  }
+  lobbyPhase = 'lobby';
+  myChampLocked = false;
+  myReadyState = false;
+  currentRoomId = null;
+  roomHostId = -1;
+  roomHostToken = null;
+  lanLobbyPlayers = [];
+  serverMatchInProgress = false;
+  serverMatchInfo = null;
+  lobbySubView = 'browser';
+  if (lanConnected) {
+    sendWs({ type: 'leave_room' });
+    sendWs({ type: 'get_rooms' });
+  }
+  SFX.move();
   renderLobby();
 }
 
 function quickStartSoloFromBrowser(mode) {
-  ensureAudio();
-  lobbySubView = 'room';
-  if (mode === '5v5') quickFill5v5Bots();
-  else if (mode === '3v3') quickFill3v3Bots();
-  renderLobby();
+  createNewCustomLobbyRoom(mode);
 }
 
 function selectInitialDevice(mode) {
@@ -3032,6 +3135,12 @@ function initMatch(serverMatchData = null) {
     minionWaveTimer: 1.0, waveCount: 0
   };
 
+  if (serverMatchData) {
+    if (serverMatchData.roomId) currentRoomId = serverMatchData.roomId;
+    if (typeof serverMatchData.hostId === 'number') roomHostId = serverMatchData.hostId;
+    if (serverMatchData.hostToken) roomHostToken = serverMatchData.hostToken;
+    recomputeIsLanHost();
+  }
   if (serverMatchData && serverMatchData.seed) {
     matchSeed = serverMatchData.seed;
   } else {
@@ -3045,7 +3154,10 @@ function initMatch(serverMatchData = null) {
     serverMatchData.slots.forEach((sl) => {
       const idx = G.champions.length;
       const isMe = Boolean((sl.clientToken && sl.clientToken === myClientToken) || (sl.playerId && sl.playerId === myPlayerId));
-      if (isMe) myChampIdx = idx;
+      if (isMe) {
+        myChampIdx = idx;
+        if (sl.playerId) myPlayerId = sl.playerId;
+      }
       const c = createChamp(sl.team || BLUE, idx, sl.specId, sl.isHuman, sl.name, sl.spellD, sl.spellF);
       c.isLocalMe = isMe;
       c.playerId = sl.playerId || -1;
@@ -3263,6 +3375,7 @@ function spawnBeam(opts) {
 // ═══ DAMAGE & COMBAT RESOLUTION ═══
 function dealDamage(target, rawDmg, ownerIdx, opts = {}) {
   if (!target || target.dead || target.hp <= 0) return;
+  if (isMultiplayerClientMode()) return;
   if (!opts.isFountainLaser && target.invulnTimer && target.invulnTimer > 0) return;
   if ((target.type === 'turret' || target.type === 'inhibitor' || target.type === 'nexus') && !isStructureVulnerable(target)) {
     return;
@@ -5501,25 +5614,37 @@ function updateBotAI(c, dt) {
 // ═══ MAIN GAME TICK (60 FPS) ═══
 function updateGame(dt) {
   if (!G || !inGame || G.winner) return;
+  const clientAuthorityOnly = isMultiplayerClientMode();
   G.time += dt;
 
-  // Ambient ARAM Gold & XP drip
-  if (Math.floor(G.time) > Math.floor(G.time - dt)) {
-    for (const ch of G.champions) {
-      awardXpAndGold(ch, 9, 6);
+  if (!clientAuthorityOnly) {
+    // Ambient ARAM Gold & XP drip (Host / Solo only; synced to clients via world_sync)
+    if (Math.floor(G.time) > Math.floor(G.time - dt)) {
+      for (const ch of G.champions) {
+        awardXpAndGold(ch, 9, 6);
+      }
+    }
+
+    // Minion Wave Spawner (Host / Solo only)
+    G.minionWaveTimer -= dt;
+    if (G.minionWaveTimer <= 0) {
+      spawnMinionWave();
+      G.minionWaveTimer = 21.0;
+    }
+
+    updateStructures(dt);
+    updateRelics(dt);
+    updateMinions(dt);
+  } else {
+    // Non-host client smoothly interpolates minion positions between 20Hz host snapshots
+    for (const m of G.minions) {
+      if (m.dead) continue;
+      if (typeof m.netX === 'number' && typeof m.netY === 'number') {
+        m.x += (m.netX - m.x) * Math.min(1, dt * 14);
+        m.y += (m.netY - m.y) * Math.min(1, dt * 14);
+      }
     }
   }
-
-  // Minion Wave Spawner
-  G.minionWaveTimer -= dt;
-  if (G.minionWaveTimer <= 0) {
-    spawnMinionWave();
-    G.minionWaveTimer = 21.0;
-  }
-
-  updateStructures(dt);
-  updateRelics(dt);
-  updateMinions(dt);
 
   // Wind Walls & Tactical Pings
   for (const w of G.windWalls) w.timer -= dt;
@@ -5804,7 +5929,7 @@ function updateGame(dt) {
     // AI or Player Movement & Orb-Walking (Attack While Moving!)
     let isActivelyMovingInput = false;
     if (!c.isPlayer) {
-      if (!lanConnected || isLanHost) {
+      if (!clientAuthorityOnly) {
         updateBotAI(c, dt);
       }
     } else if (c.idx === myChampIdx) {
@@ -7459,11 +7584,13 @@ function toggleReadyState() {
   renderLobby();
 }
 
-function requestRejoinActiveMatch(spectateOnly = false, targetSlotIdx = null) {
+function requestRejoinActiveMatch(spectateOnly = false, targetSlotIdx = null, roomIdOverride = null) {
   ensureAudio();
   if (lanConnected) {
+    const rid = roomIdOverride || currentRoomId;
     sendWs({
       type: 'rejoin_match',
+      roomId: rid,
       clientToken: myClientToken,
       spectateOnly: Boolean(spectateOnly),
       targetSlotIdx: typeof targetSlotIdx === 'number' ? targetSlotIdx : null
@@ -7537,12 +7664,38 @@ function clearLocalMatchBackup() {
 function handleLanMessage(msg) {
   if (msg.type === 'welcome') {
     myPlayerId = msg.playerId;
+    if (msg.roomId !== undefined) currentRoomId = msg.roomId;
+    recomputeIsLanHost();
     if (msg.name) {
       const inp = document.getElementById('summonerNameInput');
       if (!inp.value || inp.value === 'Summoner' || inp.value.startsWith('Oyuncu ')) {
         inp.value = msg.name;
       }
     }
+    if (!currentRoomId) {
+      lobbySubView = 'browser';
+      if (!inGame) renderLobby();
+    }
+  } else if (msg.type === 'rooms_list') {
+    serverRoomsList = Array.isArray(msg.rooms) ? msg.rooms : [];
+    serverOnlinePlayers = Array.isArray(msg.onlinePlayers) ? msg.onlinePlayers : [];
+    const badge = document.getElementById('lanStatusBadge');
+    if (badge && !currentRoomId) {
+      badge.textContent = `${serverRoomsList.length} LOBİ • ${serverOnlinePlayers.length} ÇEVRİMİÇİ`;
+    }
+    if (!inGame && lobbySubView === 'browser') {
+      renderLobbyBrowserStage();
+    }
+  } else if (msg.type === 'left_room') {
+    currentRoomId = null;
+    roomHostId = -1;
+    roomHostToken = null;
+    lanLobbyPlayers = [];
+    lobbyPhase = 'lobby';
+    myChampLocked = false;
+    myReadyState = false;
+    lobbySubView = 'browser';
+    if (!inGame) renderLobby();
   } else if (msg.type === 'champ_select_tick') {
     champSelectCountdown = msg.champSelectTimer;
     const cdEl = document.getElementById('champSelectCountdownText');
@@ -7553,8 +7706,26 @@ function handleLanMessage(msg) {
       subEl.className = 'text-[11px] text-[#fde047] font-black';
     }
   } else if (msg.type === 'lobby_state') {
+    if (msg.roomId) {
+      currentRoomId = msg.roomId;
+      lobbySubView = 'room';
+    }
+    if (msg.roomName) currentRoomName = msg.roomName;
+    if (typeof msg.hostId === 'number') roomHostId = msg.hostId;
+    if (msg.hostToken) roomHostToken = msg.hostToken;
     lanLobbyPlayers = msg.players || [];
-    isLanHost = (msg.hostId === myPlayerId);
+
+    const me = lanLobbyPlayers.find(p => (p.clientToken && p.clientToken === myClientToken) || p.id === myPlayerId);
+    if (me) {
+      myPlayerId = me.id;
+      if (me.champId && CHAMP_SPECS[me.champId]) selectedChampId = me.champId;
+      myLobbyTeam = me.team;
+      myReadyState = Boolean(me.ready);
+      myChampLocked = Boolean(me.locked);
+      if (typeof me.rerolls === 'number') rerollsLeft = me.rerolls;
+    }
+    recomputeIsLanHost();
+
     const prevPhase = lobbyPhase;
     lobbyPhase = (msg.phase === 'champ_select') ? 'champ_select' : 'lobby';
     if (typeof msg.champSelectTimer === 'number') {
@@ -7568,16 +7739,6 @@ function handleLanMessage(msg) {
     if (Array.isArray(msg.redBots)) redBots = msg.redBots;
     if (typeof msg.freePickMode === 'boolean') freePickMode = msg.freePickMode;
     if (msg.aiDiff) document.getElementById('aiDiffSelect').value = msg.aiDiff;
-
-    const me = lanLobbyPlayers.find(p => p.id === myPlayerId || (p.clientToken && p.clientToken === myClientToken));
-    if (me) {
-      myPlayerId = me.id;
-      if (me.champId && CHAMP_SPECS[me.champId]) selectedChampId = me.champId;
-      myLobbyTeam = me.team;
-      myReadyState = Boolean(me.ready);
-      myChampLocked = Boolean(me.locked);
-      if (typeof me.rerolls === 'number') rerollsLeft = me.rerolls;
-    }
     // Keep benchChamps pointing ONLY to our own team's bench!
     benchChamps = (myLobbyTeam === BLUE) ? blueBenchChamps : redBenchChamps;
 
@@ -7598,7 +7759,14 @@ function handleLanMessage(msg) {
     appendChatMessage(msg.sender, msg.text, msg.team);
   } else if (msg.type === 'match_start') {
     lobbyPhase = 'lobby';
+    if (msg.roomId) currentRoomId = msg.roomId;
+    if (typeof msg.hostId === 'number') roomHostId = msg.hostId;
+    if (msg.hostToken) roomHostToken = msg.hostToken;
+    recomputeIsLanHost();
     initMatch({
+      roomId: msg.roomId || currentRoomId,
+      hostId: msg.hostId,
+      hostToken: msg.hostToken,
       aiDiff: msg.aiDiff || 'normal',
       slots: msg.slots,
       seed: msg.seed || 20261017,
@@ -7626,7 +7794,9 @@ function handleLanMessage(msg) {
     showAnnouncement('ODADAN ÇIKARILDIN', '#e84057', msg.reason || 'Oda kurucusu seni odadan çıkardı.');
     renderLobby();
   } else if (msg.type === 'host_migrated') {
-    isLanHost = (msg.hostId === myPlayerId);
+    if (typeof msg.hostId === 'number') roomHostId = msg.hostId;
+    if (msg.hostToken) roomHostToken = msg.hostToken;
+    recomputeIsLanHost();
     if (isLanHost && inGame) {
       showAnnouncement('ODA KURUCUSU OLDUN', '#0ac8b9', 'Sunucu otoritesi kesintisiz olarak senin cihazına devredildi.');
     }
@@ -7864,6 +8034,29 @@ function buildWorldSnapshot() {
       hp: Math.round(m.hp), maxHp: m.maxHp,
       dmg: m.dmg, range: m.range, speed: m.speed, r: m.r
     })),
+    projectiles: G.projectiles.slice(0, 45).map(p => ({
+      x: Math.round(p.x), y: Math.round(p.y),
+      vx: Math.round(p.vx), vy: Math.round(p.vy),
+      color: p.color, r: p.r, shape: p.shape || 'orb',
+      team: p.team, ownerIdx: p.ownerIdx,
+      drawHookChain: Boolean(p.drawHookChain),
+      life: +(p.life || 0.2).toFixed(2), maxLife: +(p.maxLife || 0.5).toFixed(2)
+    })),
+    aoes: G.aoes.slice(0, 20).map(a => ({
+      x: Math.round(a.x), y: Math.round(a.y), radius: Math.round(a.radius),
+      color: a.color, team: a.team,
+      timer: +(a.timer || 0.2).toFixed(2), maxTimer: +(a.maxTimer || 0.5).toFixed(2)
+    })),
+    beams: G.beams.slice(0, 12).map(b => ({
+      x1: Math.round(b.x1), y1: Math.round(b.y1),
+      x2: Math.round(b.x2), y2: Math.round(b.y2),
+      width: b.width, color: b.color, team: b.team,
+      timer: +(b.timer || 0.2).toFixed(2), maxTimer: +(b.maxTimer || 0.4).toFixed(2)
+    })),
+    windWalls: G.windWalls.map(w => ({
+      x: Math.round(w.x), y: Math.round(w.y), ang: +(w.ang || 0).toFixed(2),
+      r: w.r, team: w.team, timer: +(w.timer || 0.5).toFixed(2)
+    })),
     killFeed: killFeedList.slice(0, 5)
   };
 }
@@ -8081,8 +8274,11 @@ function applyWorldSync(snap, isInitialRejoin = false) {
     G.minions = snap.minions.map(sm => {
       const ex = existingMap.get(sm.id);
       if (ex) {
-        ex.x = Math.round(ex.x * 0.4 + sm.x * 0.6);
-        ex.y = Math.round(ex.y * 0.4 + sm.y * 0.6);
+        ex.netX = sm.x;
+        ex.netY = sm.y;
+        if (dist(ex.x, ex.y, sm.x, sm.y) > 120) {
+          ex.x = sm.x; ex.y = sm.y;
+        }
         ex.hp = sm.hp;
         ex.maxHp = sm.maxHp;
         ex.dead = false;
@@ -8090,11 +8286,45 @@ function applyWorldSync(snap, isInitialRejoin = false) {
       }
       return {
         id: sm.id, team: sm.team, type: sm.type,
-        x: sm.x, y: sm.y, hp: sm.hp, maxHp: sm.maxHp,
+        x: sm.x, y: sm.y, netX: sm.x, netY: sm.y,
+        hp: sm.hp, maxHp: sm.maxHp,
         dmg: sm.dmg || 24, range: sm.range || 75, speed: sm.speed || 164,
         atkCd: 1.05, atkTimer: 0, r: sm.r || 12, dead: false
       };
     });
+  }
+  if (Array.isArray(snap.projectiles)) {
+    G.projectiles = snap.projectiles.map(sp => ({
+      x: sp.x, y: sp.y, startX: sp.x, startY: sp.y,
+      vx: sp.vx, vy: sp.vy, ang: Math.atan2(sp.vy, sp.vx),
+      dmg: 0, isSpell: true, isTrue: false,
+      team: sp.team, ownerIdx: sp.ownerIdx,
+      color: sp.color || '#38bdf8', r: sp.r || 8,
+      shape: sp.shape || 'orb', drawHookChain: Boolean(sp.drawHookChain),
+      life: sp.life || 0.25, maxLife: sp.maxLife || 0.5,
+      hitSet: new Set()
+    }));
+  }
+  if (Array.isArray(snap.aoes)) {
+    G.aoes = snap.aoes.map(sa => ({
+      x: sa.x, y: sa.y, radius: sa.radius,
+      dmg: 0, isSpell: true, hit: true,
+      team: sa.team, color: sa.color,
+      timer: sa.timer || 0.25, maxTimer: sa.maxTimer || 0.5
+    }));
+  }
+  if (Array.isArray(snap.beams)) {
+    G.beams = snap.beams.map(sb => ({
+      x1: sb.x1, y1: sb.y1, x2: sb.x2, y2: sb.y2,
+      width: sb.width || 30, dmg: 0, hit: true,
+      team: sb.team, color: sb.color,
+      timer: sb.timer || 0.25, maxTimer: sb.maxTimer || 0.4
+    }));
+  }
+  if (Array.isArray(snap.windWalls)) {
+    G.windWalls = snap.windWalls.map(sw => ({
+      x: sw.x, y: sw.y, ang: sw.ang, r: sw.r, team: sw.team, timer: sw.timer
+    }));
   }
 }
 
@@ -8857,118 +9087,120 @@ function renderLobbyBrowserStage() {
   if (!listEl || !onlineEl) return;
 
   const myName = getSavedSummonerName() || document.getElementById('summonerNameInput').value.trim() || 'Sihirdar';
-  const localBackup = !lanConnected ? loadLocalMatchBackup() : null;
-  const isLiveGame = (lanConnected && serverMatchInProgress) || Boolean(localBackup);
+  const onlineList = (lanConnected && serverOnlinePlayers.length > 0)
+    ? serverOnlinePlayers
+    : [{ id: myPlayerId, name: myName, roomId: currentRoomId, status: 'browser' }];
 
-  const playersList = (lanConnected && lanLobbyPlayers.length > 0)
-    ? lanLobbyPlayers
-    : [{ id: myPlayerId, name: myName, team: myLobbyTeam, ready: true, inGame: isLiveGame }];
-
-  if (onlineBadge) onlineBadge.textContent = `${playersList.length} Çevrimiçi`;
-  onlineEl.innerHTML = playersList.map((p, idx) => {
+  if (onlineBadge) onlineBadge.textContent = `${onlineList.length} Çevrimiçi`;
+  onlineEl.innerHTML = onlineList.map((p) => {
     const isMe = (p.id === myPlayerId);
-    const pInGame = isLiveGame && (!serverMatchInfo || !Array.isArray(serverMatchInfo.players) || serverMatchInfo.players.includes(p.name));
-    const stText = pInGame ? '⚔️ OYUNDA' : (lobbyPhase === 'champ_select' ? '⏳ SEÇİMDE' : '🟢 LOBİDE');
-    const stCol = pInGame ? 'text-[#fde047] border-[#c8aa6e]' : 'text-[#4ade80] border-[#10b981]';
+    const stText = p.status === 'in_game' ? '⚔️ OYUNDA' : p.status === 'champ_select' ? '⏳ SEÇİMDE' : p.roomId ? `🟢 ODA #${p.roomId}` : '🌐 LOBİLERDE';
+    const stCol = p.status === 'in_game' ? 'text-[#fde047] border-[#c8aa6e]' : 'text-[#4ade80] border-[#10b981]';
     return `
       <div class="flex items-center justify-between bg-[#060e1a] border border-[#3c3c41] px-2.5 py-1.5 text-xs">
-        <div class="flex items-center gap-2 min-w-0">
-          <span class="w-2 h-2 rounded-full ${p.team === 'red' ? 'bg-[#e84057]' : 'bg-[#0ac8b9]'}"></span>
-          <span class="font-bold truncate ${isMe ? 'text-[#c8aa6e]' : 'text-[#f0e6d2]'}">${p.name}${isMe ? ' (Sen)' : ''}</span>
-        </div>
+        <span class="font-bold truncate ${isMe ? 'text-[#c8aa6e]' : 'text-[#f0e6d2]'}">${p.name}${isMe ? ' (Sen)' : ''}</span>
         <span class="text-[9px] font-mono px-1.5 py-0.5 bg-[#091428] border ${stCol} font-bold shrink-0">${stText}</span>
       </div>
     `;
   }).join('');
 
-  const hostName = playersList[0] ? playersList[0].name : myName;
-  const totalHumans = playersList.length;
-  const totalBots = blueBots.length + redBots.length;
+  if (lanConnected) {
+    if (roomBadge) roomBadge.textContent = `${serverRoomsList.length} Aktif Lobi`;
+    if (serverRoomsList.length === 0) {
+      listEl.innerHTML = `
+        <div class="bg-[#060e1a] border border-dashed border-[#463714] p-6 text-center space-y-3">
+          <div class="font-cinzel text-sm font-bold text-[#c8aa6e]">AKTİF LOBİ YOK</div>
+          <div class="flex flex-wrap items-center justify-center gap-2">
+            <button onclick="createNewCustomLobbyRoom('5v5')" class="hex-btn-primary px-4 py-2 font-cinzel text-xs font-black uppercase">+ 5v5 LOBİ KUR</button>
+            <button onclick="createNewCustomLobbyRoom('3v3')" class="hex-btn px-4 py-2 text-xs text-[#0ac8b9]">+ 3v3 LOBİ KUR</button>
+            <button onclick="createNewCustomLobbyRoom('1v1')" class="hex-btn px-4 py-2 text-xs text-[#c8aa6e]">+ 1v1 LOBİ KUR</button>
+          </div>
+        </div>
+      `;
+      return;
+    }
 
-  let cardsHtml = '';
+    listEl.innerHTML = serverRoomsList.map((rm) => {
+      const isLive = (rm.phase === 'in_game' && rm.matchInProgress);
+      const isCS = (rm.phase === 'champ_select');
+      if (isLive) {
+        const mInfo = rm.matchInfo || {};
+        const mins = Math.floor((mInfo.time || 0) / 60);
+        const secs = Math.floor((mInfo.time || 0) % 60);
+        const slotList = Array.isArray(mInfo.slots) ? mInfo.slots : [];
+        const slotRowsHtml = slotList.map((sl, sIdx) => {
+          const sp = CHAMP_SPECS[sl.specId] || CHAMP_SPECS.luxana;
+          const isBot = !sl.isPlayer && !sl.isHuman;
+          const teamCol = sl.team === 'red' ? 'text-[#e84057]' : 'text-[#0ac8b9]';
+          return `
+            <div class="flex items-center justify-between bg-[#010a13] border border-[#3c3c41] px-2 py-1 text-[11px] gap-2">
+              <div class="flex items-center gap-1.5 min-w-0">
+                <img src="${sp.squareUrl}" onerror="handleImgError(this,'${sp.color}','${sp.accent}','orb')" class="w-5 h-5 border border-[#785a28] shrink-0">
+                <span class="font-bold truncate ${teamCol}">${sp.name} <span class="text-[#c8aa6e] font-mono">Sv.${sl.level || 3}</span></span>
+                <span class="text-[9px] text-[#a09b8c] font-mono">(${isBot ? 'BOT' : (sl.summonerName || 'Oyuncu')})</span>
+              </div>
+              ${isBot ? `<button onclick="requestRejoinActiveMatch(false, ${sIdx}, '${rm.roomId}')" class="hex-btn-primary px-2 py-0.5 text-[9px] font-cinzel font-black uppercase shrink-0">YERİNE GEÇ</button>` : `<span class="text-[9px] font-mono text-[#4ade80] font-bold shrink-0">OYUNDA</span>`}
+            </div>
+          `;
+        }).join('');
 
-  // Card 1: Active Main Room / Live Match Card
-  if (isLiveGame) {
-    const mInfo = (lanConnected && serverMatchInfo) ? serverMatchInfo : (localBackup && localBackup.snapshot ? {
-      time: localBackup.snapshot.time || 0,
-      blueKills: localBackup.snapshot.blueKills || 0,
-      redKills: localBackup.snapshot.redKills || 0,
-      hasOpenBotSlot: localBackup.snapshot.champions.some(c => !c.isPlayer),
-      slots: localBackup.snapshot.champions
-    } : { time: 0, blueKills: 0, redKills: 0, hasOpenBotSlot: true, slots: [] });
+        return `
+          <div class="bg-[#060e1a] border-2 border-[#0ac8b9] p-3 space-y-2">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="px-2 py-0.5 bg-[#e84057]/20 border border-[#e84057] text-[#e84057] text-[10px] font-mono font-black">● CANLI MAÇ (#${rm.roomId})</span>
+                  <span class="font-cinzel font-black text-sm text-[#f0e6d2]">${rm.name}</span>
+                </div>
+                <div class="text-[11px] text-[#a09b8c] font-mono mt-0.5">
+                  Kurucu: <b class="text-[#c8aa6e]">${rm.hostName}</b> • Süre: <b class="text-[#f0e6d2]">${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}</b> • Skor: <b class="text-[#0ac8b9]">${mInfo.blueKills || 0}</b> - <b class="text-[#e84057]">${mInfo.redKills || 0}</b>
+                </div>
+              </div>
+              <div class="flex items-center gap-1.5">
+                ${mInfo.hasOpenBotSlot !== false ? `<button onclick="requestRejoinActiveMatch(false, null, '${rm.roomId}')" class="hex-btn-primary px-3 py-1.5 text-xs font-cinzel font-black uppercase">MAÇA KATIL</button>` : ''}
+                <button onclick="requestRejoinActiveMatch(true, null, '${rm.roomId}')" class="hex-btn px-3 py-1.5 text-xs font-cinzel font-bold text-[#0ac8b9] uppercase">İZLE</button>
+              </div>
+            </div>
+            ${slotRowsHtml ? `<div class="grid grid-cols-1 md:grid-cols-2 gap-1 pt-1 border-t border-[#3c3c41]">${slotRowsHtml}</div>` : ''}
+          </div>
+        `;
+      }
 
-    const mins = Math.floor((mInfo.time || 0) / 60);
-    const secs = Math.floor((mInfo.time || 0) % 60);
-    const slotList = Array.isArray(mInfo.slots) ? mInfo.slots : [];
-
-    const slotRowsHtml = slotList.map((sl, sIdx) => {
-      const sp = CHAMP_SPECS[sl.specId] || CHAMP_SPECS.luxana;
-      const isBot = !sl.isPlayer && !sl.isHuman;
-      const itemCount = Array.isArray(sl.itemIds) ? sl.itemIds.length : 0;
-      const teamCol = sl.team === 'red' ? 'text-[#e84057]' : 'text-[#0ac8b9]';
       return `
-        <div class="flex items-center justify-between bg-[#010a13] border border-[#3c3c41] px-2 py-1 text-[11px] gap-2">
-          <div class="flex items-center gap-1.5 min-w-0">
-            <img src="${sp.squareUrl}" onerror="handleImgError(this,'${sp.color}','${sp.accent}','orb')" class="w-6 h-6 border border-[#785a28] shrink-0">
-            <div class="min-w-0">
-              <div class="font-bold truncate ${teamCol}">${sp.name} <span class="text-[#c8aa6e] font-mono">Sv.${sl.level || 3}</span></div>
-              <div class="text-[9px] text-[#a09b8c] font-mono">${isBot ? '🤖 BOT' : ('👤 ' + (sl.summonerName || sl.name || 'Oyuncu'))} • ${sl.kills || 0}/${sl.deaths || 0}/${sl.assists || 0} • ${itemCount} Eşya • ${sl.gold || 1400}G</div>
+        <div class="bg-[#060e1a] border-2 border-[#785a28] hover:border-[#c8aa6e] p-3 flex flex-wrap items-center justify-between gap-2 transition">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 ${isCS ? 'bg-[#f59e0b]/20 border-[#f59e0b] text-[#fbbf24]' : 'bg-[#10b981]/20 border-[#10b981] text-[#4ade80]'} border text-[10px] font-mono font-black">
+                ${isCS ? '⏳ ŞAMPİYON SEÇİMİ' : '● AÇIK LOBİ'} (#${rm.roomId})
+              </span>
+              <span class="font-cinzel font-black text-sm text-[#f0e6d2]">${rm.name}</span>
+            </div>
+            <div class="text-xs text-[#a09b8c] font-mono mt-0.5">
+              Kurucu: <b class="text-[#c8aa6e]">${rm.hostName}</b> • Oyuncular: <b class="text-[#0ac8b9]">${rm.humanCount} İnsan + ${rm.botCount} Bot</b> (${rm.totalSlots}/10) • Mod: ${rm.freePickMode ? 'Serbest' : 'Rastgele'}
             </div>
           </div>
-          ${isBot ? `<button onclick="requestRejoinActiveMatch(false, ${sIdx})" class="hex-btn-primary px-2 py-1 text-[9px] font-cinzel font-black uppercase shrink-0" title="${sp.name} (Sv.${sl.level || 3}) yerine aynı seviye ve eşyalarla katıl!">YERİNE GEÇ (Sv.${sl.level || 3})</button>` : `<span class="text-[9px] font-mono text-[#4ade80] font-bold shrink-0">OYUNDA</span>`}
+          <button onclick="joinCustomLobbyRoom('${rm.roomId}')" class="hex-btn-primary px-4 py-2 font-cinzel text-xs font-black uppercase tracking-wider">
+            LOBİYE KATIL →
+          </button>
         </div>
       `;
     }).join('');
-
-    cardsHtml += `
-      <div class="bg-[#060e1a] border-2 border-[#0ac8b9] p-3 space-y-2.5 shadow-xl">
-        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-[#3c3c41] pb-2">
-          <div>
-            <div class="flex items-center gap-2">
-              <span class="px-2 py-0.5 bg-[#e84057]/20 border border-[#e84057] text-[#e84057] text-[10px] font-mono font-black animate-pulse">● OYUNDA — CANLI MAÇ</span>
-              <span class="font-cinzel font-black text-sm text-[#f0e6d2]">${hostName} — Sonsuz Uçurum Lobisi</span>
-            </div>
-            <div class="text-[11px] text-[#a09b8c] font-mono mt-0.5">
-              Süre: <b class="text-[#f0e6d2]">${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}</b> • Skor: <b class="text-[#0ac8b9]">Mavi ${mInfo.blueKills || 0}</b> - <b class="text-[#e84057]">${mInfo.redKills || 0} Kırmızı</b> • Mod: ${freePickMode ? 'Serbest Seçim' : 'Rastgele ARAM'}
-            </div>
-          </div>
-          <div class="flex items-center gap-2">
-            ${mInfo.hasOpenBotSlot !== false ? `<button onclick="requestRejoinActiveMatch(false)" class="hex-btn-primary px-3.5 py-2 text-xs font-cinzel font-black uppercase">⚔️ BOTUN YERİNE KATIL</button>` : ''}
-            <button onclick="requestRejoinActiveMatch(true)" class="hex-btn px-3.5 py-2 text-xs font-cinzel font-bold text-[#0ac8b9] uppercase">👁️ İZLEYİCİ OL</button>
-            <button onclick="switchLobbyView('room')" class="hex-btn px-2.5 py-2 text-xs">Oda Detayı</button>
-          </div>
-        </div>
-        ${slotRowsHtml ? `
-          <div>
-            <div class="text-[10px] font-mono font-bold text-[#c8aa6e] mb-1 uppercase">Maçtaki Şampiyonlar (İstediğin Botun Yerine Mevcut Seviyesi ve Eşyalarıyla Katılabilirsin):</div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-1.5 max-h-[210px] overflow-y-auto">${slotRowsHtml}</div>
-          </div>
-        ` : ''}
-      </div>
-    `;
-  } else {
-    cardsHtml += `
-      <div class="bg-[#060e1a] border-2 border-[#785a28] hover:border-[#c8aa6e] p-3.5 flex flex-wrap items-center justify-between gap-3 transition">
-        <div class="space-y-1">
-          <div class="flex items-center gap-2">
-            <span class="px-2 py-0.5 bg-[#10b981]/20 border border-[#10b981] text-[#4ade80] text-[10px] font-mono font-black">● AÇIK LOBİ — BEKLİYOR</span>
-            <span class="font-cinzel font-black text-sm md:text-base text-[#f0e6d2]">${hostName} — Sonsuz Uçurum Özel Odası</span>
-          </div>
-          <div class="text-xs text-[#a09b8c] font-mono">
-            Oyuncular: <b class="text-[#0ac8b9]">${totalHumans} İnsan + ${totalBots} Bot</b> (${totalHumans + totalBots}/10) • Mod: <b class="text-[#c8aa6e]">${freePickMode ? 'Serbest Seçim' : 'Rastgele (ARAM)'}</b> • Zorluk: <b class="text-[#f0e6d2] uppercase">${document.getElementById('aiDiffSelect').value}</b>
-          </div>
-        </div>
-        <div class="flex items-center gap-2">
-          <button onclick="switchLobbyView('room')" class="hex-btn-primary px-5 py-2.5 font-cinzel text-xs font-black uppercase tracking-wider">
-            LOBİYE KATIL / YÖNET →
-          </button>
-        </div>
-      </div>
-    `;
+    return;
   }
 
-  if (roomBadge) roomBadge.textContent = isLiveGame ? '1 Canlı Maç Devam Ediyor' : '1 Açık Lobi';
-  listEl.innerHTML = cardsHtml;
+  // Offline / Solo Fallback
+  if (roomBadge) roomBadge.textContent = 'Çevrimdışı Mod';
+  listEl.innerHTML = `
+    <div class="bg-[#060e1a] border-2 border-[#785a28] p-4 flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <div class="font-cinzel font-black text-sm text-[#f0e6d2]">YEREL ÖZEL LOBİ (SOLO)</div>
+        <div class="text-xs text-[#a09b8c] font-mono mt-0.5">Botlarla 5v5, 3v3 veya 1v1 özel maç başlat</div>
+      </div>
+      <button onclick="createNewCustomLobbyRoom('3v3')" class="hex-btn-primary px-4 py-2 font-cinzel text-xs font-black uppercase">
+        LOBİYİ AÇ →
+      </button>
+    </div>
+  `;
 }
 
 function renderLobby() {
@@ -9005,7 +9237,12 @@ function renderLobby() {
   }
 
   // Host-Only Settings Lock Enforcement in UI
+  recomputeIsLanHost();
   const canEditSettings = !lanConnected || isLanHost;
+  const rcBadge = document.getElementById('roomCodeBadge');
+  if (rcBadge) rcBadge.textContent = currentRoomId ? `ODA #${currentRoomId}` : 'YEREL ODA';
+  const rtText = document.getElementById('roomTitleText');
+  if (rtText) rtText.textContent = currentRoomName || 'Özel Lobi';
   document.querySelectorAll('.host-only-ctrl').forEach(el => {
     el.disabled = !canEditSettings;
   });
@@ -10024,7 +10261,7 @@ window.onload = () => {
 
         if (lanConnected && isLanHost) {
           syncAccum += dt;
-          if (syncAccum >= 0.10) {
+          if (syncAccum >= 0.05) {
             syncAccum = 0;
             sendWs({ type: 'world_sync', snapshot: buildWorldSnapshot() });
           }
