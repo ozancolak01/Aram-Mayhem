@@ -2908,13 +2908,22 @@ function confirmInitialSummonerName() {
 }
 
 function requestRoomsRefresh() {
+  ensureAudio();
+  if (lanConnected && !currentRoomId) {
+    lobbySubView = 'browser';
+  }
   if (lanConnected) sendWs({ type: 'get_rooms' });
+  SFX.move();
   renderLobby();
 }
 
 function switchLobbyView(view) {
   ensureAudio();
-  lobbySubView = (view === 'room') ? 'room' : 'browser';
+  if (view === 'room' && lanConnected && !currentRoomId) {
+    lobbySubView = 'browser';
+  } else {
+    lobbySubView = (view === 'room') ? 'room' : 'browser';
+  }
   if (lobbySubView === 'browser' && lanConnected) {
     sendWs({ type: 'get_rooms' });
   }
@@ -2936,7 +2945,6 @@ function createNewCustomLobbyRoom(preset = '3v3') {
       freePickMode: true,
       aiDiff: document.getElementById('aiDiffSelect').value || 'normal'
     });
-    lobbySubView = 'room';
     SFX.augmentOpen();
   } else {
     currentRoomId = 'LOCAL';
@@ -2952,12 +2960,13 @@ function createNewCustomLobbyRoom(preset = '3v3') {
 
 function joinCustomLobbyRoom(roomId) {
   ensureAudio();
-  if (!roomId) return;
+  const cleanId = String(roomId || '').trim();
+  if (!cleanId || cleanId === 'undefined' || cleanId === 'null') return;
   if (lanConnected) {
-    sendWs({ type: 'join_room', roomId });
-    lobbySubView = 'room';
+    sendWs({ type: 'join_room', roomId: cleanId, id: cleanId });
     SFX.augmentOpen();
   } else {
+    currentRoomId = 'LOCAL';
     lobbySubView = 'room';
     renderLobby();
   }
@@ -9094,8 +9103,9 @@ function renderLobbyBrowserStage() {
   if (onlineBadge) onlineBadge.textContent = `${onlineList.length} Çevrimiçi`;
   onlineEl.innerHTML = onlineList.map((p) => {
     const isMe = (p.id === myPlayerId);
-    const stText = p.status === 'in_game' ? '⚔️ OYUNDA' : p.status === 'champ_select' ? '⏳ SEÇİMDE' : p.roomId ? `🟢 ODA #${p.roomId}` : '🌐 LOBİLERDE';
-    const stCol = p.status === 'in_game' ? 'text-[#fde047] border-[#c8aa6e]' : 'text-[#4ade80] border-[#10b981]';
+    const pStatus = p.status || p.phase || 'browser';
+    const stText = pStatus === 'in_game' ? '⚔️ OYUNDA' : pStatus === 'champ_select' ? '⏳ SEÇİMDE' : p.roomId ? `🟢 ${p.roomName || ('ODA #' + p.roomId)}` : '🌐 LOBİLERDE';
+    const stCol = pStatus === 'in_game' ? 'text-[#fde047] border-[#c8aa6e]' : 'text-[#4ade80] border-[#10b981]';
     return `
       <div class="flex items-center justify-between bg-[#060e1a] border border-[#3c3c41] px-2.5 py-1.5 text-xs">
         <span class="font-bold truncate ${isMe ? 'text-[#c8aa6e]' : 'text-[#f0e6d2]'}">${p.name}${isMe ? ' (Sen)' : ''}</span>
@@ -9121,6 +9131,8 @@ function renderLobbyBrowserStage() {
     }
 
     listEl.innerHTML = serverRoomsList.map((rm) => {
+      const rid = rm.roomId || rm.id;
+      const totalSlots = rm.totalSlots !== undefined ? rm.totalSlots : ((rm.humanCount || 0) + (rm.botCount || 0));
       const isLive = (rm.phase === 'in_game' && rm.matchInProgress);
       const isCS = (rm.phase === 'champ_select');
       if (isLive) {
@@ -9139,7 +9151,7 @@ function renderLobbyBrowserStage() {
                 <span class="font-bold truncate ${teamCol}">${sp.name} <span class="text-[#c8aa6e] font-mono">Sv.${sl.level || 3}</span></span>
                 <span class="text-[9px] text-[#a09b8c] font-mono">(${isBot ? 'BOT' : (sl.summonerName || 'Oyuncu')})</span>
               </div>
-              ${isBot ? `<button onclick="requestRejoinActiveMatch(false, ${sIdx}, '${rm.roomId}')" class="hex-btn-primary px-2 py-0.5 text-[9px] font-cinzel font-black uppercase shrink-0">YERİNE GEÇ</button>` : `<span class="text-[9px] font-mono text-[#4ade80] font-bold shrink-0">OYUNDA</span>`}
+              ${isBot ? `<button onclick="requestRejoinActiveMatch(false, ${sIdx}, '${rid}')" class="hex-btn-primary px-2 py-0.5 text-[9px] font-cinzel font-black uppercase shrink-0">YERİNE GEÇ</button>` : `<span class="text-[9px] font-mono text-[#4ade80] font-bold shrink-0">OYUNDA</span>`}
             </div>
           `;
         }).join('');
@@ -9149,7 +9161,7 @@ function renderLobbyBrowserStage() {
             <div class="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <div class="flex items-center gap-2">
-                  <span class="px-2 py-0.5 bg-[#e84057]/20 border border-[#e84057] text-[#e84057] text-[10px] font-mono font-black">● CANLI MAÇ (#${rm.roomId})</span>
+                  <span class="px-2 py-0.5 bg-[#e84057]/20 border border-[#e84057] text-[#e84057] text-[10px] font-mono font-black">● CANLI MAÇ (#${rid})</span>
                   <span class="font-cinzel font-black text-sm text-[#f0e6d2]">${rm.name}</span>
                 </div>
                 <div class="text-[11px] text-[#a09b8c] font-mono mt-0.5">
@@ -9157,8 +9169,8 @@ function renderLobbyBrowserStage() {
                 </div>
               </div>
               <div class="flex items-center gap-1.5">
-                ${mInfo.hasOpenBotSlot !== false ? `<button onclick="requestRejoinActiveMatch(false, null, '${rm.roomId}')" class="hex-btn-primary px-3 py-1.5 text-xs font-cinzel font-black uppercase">MAÇA KATIL</button>` : ''}
-                <button onclick="requestRejoinActiveMatch(true, null, '${rm.roomId}')" class="hex-btn px-3 py-1.5 text-xs font-cinzel font-bold text-[#0ac8b9] uppercase">İZLE</button>
+                ${mInfo.hasOpenBotSlot !== false ? `<button onclick="requestRejoinActiveMatch(false, null, '${rid}')" class="hex-btn-primary px-3 py-1.5 text-xs font-cinzel font-black uppercase">MAÇA KATIL</button>` : ''}
+                <button onclick="requestRejoinActiveMatch(true, null, '${rid}')" class="hex-btn px-3 py-1.5 text-xs font-cinzel font-bold text-[#0ac8b9] uppercase">İZLE</button>
               </div>
             </div>
             ${slotRowsHtml ? `<div class="grid grid-cols-1 md:grid-cols-2 gap-1 pt-1 border-t border-[#3c3c41]">${slotRowsHtml}</div>` : ''}
@@ -9171,15 +9183,15 @@ function renderLobbyBrowserStage() {
           <div>
             <div class="flex items-center gap-2">
               <span class="px-2 py-0.5 ${isCS ? 'bg-[#f59e0b]/20 border-[#f59e0b] text-[#fbbf24]' : 'bg-[#10b981]/20 border-[#10b981] text-[#4ade80]'} border text-[10px] font-mono font-black">
-                ${isCS ? '⏳ ŞAMPİYON SEÇİMİ' : '● AÇIK LOBİ'} (#${rm.roomId})
+                ${isCS ? '⏳ ŞAMPİYON SEÇİMİ' : '● AÇIK LOBİ'} (#${rid})
               </span>
               <span class="font-cinzel font-black text-sm text-[#f0e6d2]">${rm.name}</span>
             </div>
             <div class="text-xs text-[#a09b8c] font-mono mt-0.5">
-              Kurucu: <b class="text-[#c8aa6e]">${rm.hostName}</b> • Oyuncular: <b class="text-[#0ac8b9]">${rm.humanCount} İnsan + ${rm.botCount} Bot</b> (${rm.totalSlots}/10) • Mod: ${rm.freePickMode ? 'Serbest' : 'Rastgele'}
+              Kurucu: <b class="text-[#c8aa6e]">${rm.hostName}</b> • Oyuncular: <b class="text-[#0ac8b9]">${rm.humanCount} İnsan + ${rm.botCount} Bot</b> (${totalSlots}/10) • Mod: ${rm.freePickMode ? 'Serbest' : 'Rastgele'}
             </div>
           </div>
-          <button onclick="joinCustomLobbyRoom('${rm.roomId}')" class="hex-btn-primary px-4 py-2 font-cinzel text-xs font-black uppercase tracking-wider">
+          <button onclick="joinCustomLobbyRoom('${rid}')" class="hex-btn-primary px-4 py-2 font-cinzel text-xs font-black uppercase tracking-wider">
             LOBİYE KATIL →
           </button>
         </div>
@@ -9215,6 +9227,11 @@ function renderLobby() {
     if (hdrName) hdrName.textContent = savedName;
     const inpName = document.getElementById('summonerNameInput');
     if (inpName && (!inpName.value || inpName.value === 'Summoner')) inpName.value = savedName;
+  }
+
+  // Prevent ghost local lobby view when connected to LAN server without an active roomId
+  if (lanConnected && !currentRoomId && lobbyPhase === 'lobby') {
+    lobbySubView = 'browser';
   }
 
   // Toggle between Stage 0 (Custom Lobbies Browser), Stage 1 (Custom Room), and Stage 2 (Timed Champion Select)
