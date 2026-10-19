@@ -2,6 +2,7 @@ services:
   - type: web
     name: aram-mayhem
     runtime: node
-    plan: free
-    buildCommand: ""
+    plan: free            # note: free instances sleep when idle, which drops all rooms; use a paid plan for always-on
+    buildCommand: npm install && npm run build:css
     startCommand: node server.js
+    healthCheckPath: /healthz
