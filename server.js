@@ -11,10 +11,25 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const zlib = require('zlib');
 const crypto = require('crypto');
 
 const PORT = process.env.PORT || 3000;
 const WS_MAGIC = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
+
+// ── Network tuning ──────────────────────────────────────────────────────────
+const MAX_MESSAGE_BYTES   = 512 * 1024;       // largest accepted WebSocket message (a full world snapshot is ~30-60 KB)
+const MAX_CLIENTS         = 500;              // hard cap on simultaneous sockets
+const SYNC_BACKLOG_LIMIT  = 128 * 1024;       // if a socket has more than this queued, stale snapshots are dropped
+const MAX_BACKLOG_BYTES   = 8 * 1024 * 1024;  // a socket this far behind is dead: drop it instead of leaking memory
+const RATE_BURST          = 400;              // per-client message token bucket (host needs ~45 msg/s)
+const RATE_PER_SEC        = 200;
+const HEARTBEAT_MS        = 15000;            // server -> client WebSocket ping (keeps Fly/Render proxies from idling us out)
+const DEAD_AFTER_MS       = 60000;            // no bytes (not even a pong) for this long = dead socket
+const SLOT_GRACE_MS       = Number(process.env.SLOT_GRACE_MS) || 25000;            // a disconnected player keeps their champion this long before a bot takes over
+const EMPTY_ROOM_GRACE = { lobby: 15000, champ_select: 30000, in_game: 120000 };
+
+const PUBLIC_DIR = path.join(__dirname, 'public');
 
 const ALL_CHAMP_IDS = [
   'luxana', 'yasu', 'jinxie', 'blitz', 'zedd', 'ahria',
@@ -22,64 +37,132 @@ const ALL_CHAMP_IDS = [
   'kaisa', 'jhin', 'sylas', 'leesin', 'vayne', 'sett', 'leona', 'viktor'
 ];
 
+// ═══ RFC 6455 WebSocket (server side, zero dependencies) ═══
+// Handles: masked-frame validation, fragmentation, ping/pong, close handshake,
+// frame-size limit, per-client rate limit, send backpressure and snapshot coalescing.
 class SimpleWebSocketClient {
   constructor(socket) {
     this.socket = socket;
-    this.readyState = 1;
+    this.readyState = 1;               // 1 open, 2 closing, 3 closed
     this.buffer = Buffer.alloc(0);
+    this.fragments = [];
+    this.fragBytes = 0;
+    this.fragOpcode = 0;
     this.onmessage = null;
     this.onclose = null;
+    this.lastSeen = Date.now();
+    this.pendingSync = null;           // newest world snapshot we could not send yet (older ones are dropped)
+    this._closeFired = false;
+    this._tokens = RATE_BURST;
+    this._lastRefill = Date.now();
+    this._starvedSince = 0;
+
+    socket.setNoDelay(true);           // no Nagle: 20 Hz small frames must not be batched
+    socket.setKeepAlive(true, 20000);
 
     socket.on('data', chunk => {
-      this.buffer = Buffer.concat([this.buffer, chunk]);
-      this._parseFrames();
+      this.lastSeen = Date.now();
+      this.buffer = this.buffer.length ? Buffer.concat([this.buffer, chunk]) : chunk;
+      try { this._parseFrames(); } catch (e) { this._fail(1002); }
     });
-    socket.on('close', () => { this.readyState = 3; if (this.onclose) this.onclose(); });
-    socket.on('error', () => { this.readyState = 3; if (this.onclose) this.onclose(); });
+    socket.on('drain', () => this._flushPending());
+    // http.Server sockets are half-open: a peer that vanishes with a bare TCP FIN (killed browser, dropped Wi-Fi)
+    // only emits 'end', never 'close'. Without this the player lingers as a ghost until the heartbeat reaps them.
+    socket.on('end', () => this.terminate());
+    socket.on('close', () => this._fireClose());
+    socket.on('error', () => { this._fireClose(); try { socket.destroy(); } catch (e) {} });
+  }
+
+  get backlog() { return this.socket.writableLength || 0; }
+
+  _fireClose() {
+    if (this._closeFired) return;
+    this._closeFired = true;
+    this.readyState = 3;
+    this.pendingSync = null;
+    if (this.onclose) { try { this.onclose(); } catch (e) { console.error('[ws onclose]', e); } }
+  }
+
+  _allow() {
+    const now = Date.now();
+    this._tokens = Math.min(RATE_BURST, this._tokens + (now - this._lastRefill) * RATE_PER_SEC / 1000);
+    this._lastRefill = now;
+    if (this._tokens >= 1) { this._tokens -= 1; this._starvedSince = 0; return true; }
+    if (!this._starvedSince) this._starvedSince = now;
+    else if (now - this._starvedSince > 5000) this._fail(1008);   // sustained flooding
+    return false;
+  }
+
+  _deliver(opcode, payload) {
+    if (opcode !== 0x01) return;       // binary frames are not part of our protocol
+    if (!this._allow()) return;
+    if (this.onmessage) this.onmessage(payload.toString('utf8'));
   }
 
   _parseFrames() {
-    while (this.buffer.length >= 2) {
+    while (this.readyState === 1 && this.buffer.length >= 2) {
       const b0 = this.buffer[0];
       const b1 = this.buffer[1];
+      const fin = (b0 & 0x80) !== 0;
       const opcode = b0 & 0x0f;
-      const isMasked = (b1 & 0x80) !== 0;
-      let payloadLen = b1 & 0x7f;
+      const masked = (b1 & 0x80) !== 0;
+      let len = b1 & 0x7f;
       let offset = 2;
 
-      if (payloadLen === 126) {
+      // No extensions are negotiated (RSV must be 0) and browsers always mask client frames.
+      if ((b0 & 0x70) !== 0 || !masked) return this._fail(1002);
+
+      if (len === 126) {
         if (this.buffer.length < 4) return;
-        payloadLen = this.buffer.readUInt16BE(2);
+        len = this.buffer.readUInt16BE(2);
         offset = 4;
-      } else if (payloadLen === 127) {
+      } else if (len === 127) {
         if (this.buffer.length < 10) return;
-        payloadLen = Number(this.buffer.readBigUInt64BE(2));
+        const big = this.buffer.readBigUInt64BE(2);
+        if (big > BigInt(MAX_MESSAGE_BYTES)) return this._fail(1009);
+        len = Number(big);
         offset = 10;
       }
+      if (len > MAX_MESSAGE_BYTES) return this._fail(1009);                 // reject BEFORE buffering the payload
+      if (opcode >= 0x08 && (!fin || len > 125)) return this._fail(1002);   // control frames: single, small
 
-      let maskKey = null;
-      if (isMasked) {
-        if (this.buffer.length < offset + 4) return;
-        maskKey = this.buffer.slice(offset, offset + 4);
-        offset += 4;
-      }
+      if (this.buffer.length < offset + 4 + len) return;                    // wait for the rest of the frame
 
-      if (this.buffer.length < offset + payloadLen) return;
+      const mask = this.buffer.subarray(offset, offset + 4);
+      offset += 4;
+      const payload = Buffer.from(this.buffer.subarray(offset, offset + len));
+      this.buffer = this.buffer.subarray(offset + len);
+      for (let i = 0; i < payload.length; i++) payload[i] ^= mask[i & 3];
 
-      const payload = this.buffer.slice(offset, offset + payloadLen);
-      this.buffer = this.buffer.slice(offset + payloadLen);
-
-      if (isMasked && maskKey) {
-        for (let i = 0; i < payload.length; i++) payload[i] ^= maskKey[i % 4];
-      }
-
-      if (opcode === 0x08) {
-        this.close();
+      if (opcode === 0x08) {                       // close
+        this.close(1000);
         return;
-      } else if (opcode === 0x09) {
+      } else if (opcode === 0x09) {                // ping -> pong
         this._sendFrame(0x0a, payload);
-      } else if (opcode === 0x01) {
-        if (this.onmessage) this.onmessage(payload.toString('utf8'));
+      } else if (opcode === 0x0a) {                // pong (lastSeen already refreshed)
+        // nothing to do
+      } else if (opcode === 0x01 || opcode === 0x02) {
+        if (this.fragOpcode) return this._fail(1002);
+        if (fin) {
+          this._deliver(opcode, payload);
+        } else {
+          this.fragOpcode = opcode;
+          this.fragments = [payload];
+          this.fragBytes = len;
+        }
+      } else if (opcode === 0x00) {                // continuation
+        if (!this.fragOpcode) return this._fail(1002);
+        this.fragBytes += len;
+        if (this.fragBytes > MAX_MESSAGE_BYTES) return this._fail(1009);
+        this.fragments.push(payload);
+        if (fin) {
+          const full = Buffer.concat(this.fragments);
+          const op = this.fragOpcode;
+          this.fragOpcode = 0; this.fragments = []; this.fragBytes = 0;
+          this._deliver(op, full);
+        }
+      } else {
+        return this._fail(1002);
       }
     }
   }
@@ -88,6 +171,26 @@ class SimpleWebSocketClient {
     if (this.readyState !== 1) return;
     const buf = Buffer.from(typeof data === 'string' ? data : JSON.stringify(data), 'utf8');
     this._sendFrame(0x01, buf);
+    if (this.backlog > MAX_BACKLOG_BYTES) this.terminate();   // hopelessly slow peer: free the memory
+  }
+
+  // For high-rate, latest-wins data (world snapshots). Never lets stale frames pile up in the socket queue.
+  sendLatest(raw) {
+    if (this.readyState !== 1) return;
+    if (this.backlog > SYNC_BACKLOG_LIMIT) {
+      this.pendingSync = raw;          // overwrites any older pending snapshot
+      return;
+    }
+    this.pendingSync = null;
+    this.send(raw);
+  }
+
+  _flushPending() {
+    if (this.pendingSync !== null && this.readyState === 1) {
+      const raw = this.pendingSync;
+      this.pendingSync = null;
+      this.send(raw);
+    }
   }
 
   _sendFrame(opcode, payload) {
@@ -109,12 +212,49 @@ class SimpleWebSocketClient {
     try { this.socket.write(Buffer.concat([header, payload])); } catch (e) {}
   }
 
-  close() {
-    if (this.readyState !== 3) {
-      this.readyState = 3;
-      try { this.socket.write(Buffer.from([0x88, 0x00])); this.socket.end(); } catch (e) {}
-    }
+  ping() { if (this.readyState === 1) this._sendFrame(0x09, Buffer.alloc(0)); }
+
+  close(code = 1000) {
+    if (this.readyState !== 1) return;
+    this.readyState = 2;
+    this.buffer = Buffer.alloc(0);
+    try {
+      const body = Buffer.alloc(2);
+      body.writeUInt16BE(code, 0);
+      this._sendFrame(0x08, body);
+      this.socket.end();
+    } catch (e) {}
+    const t = setTimeout(() => { try { this.socket.destroy(); } catch (e) {} }, 2000);
+    if (t.unref) t.unref();
   }
+
+  terminate() {
+    try { this.socket.destroy(); } catch (e) {}
+    this._fireClose();
+  }
+
+  _fail(code) { this.close(code); }
+}
+
+// The host streams a full world snapshot ~20x/s. We forward the raw JSON text untouched and only parse it
+// lazily (rooms list / late joiners), so the hot path costs almost nothing.
+class ActiveMatch {
+  constructor(aiDiff, slots, seed) {
+    this.aiDiff = aiDiff;
+    this.slots = slots;
+    this.seed = seed;
+    this._snap = null;
+    this._raw = null;
+    this.lastSyncAt = 0;
+  }
+  get latestSnapshot() {
+    if (this._raw !== null) {
+      try { const parsed = JSON.parse(this._raw); if (parsed && parsed.snapshot) this._snap = parsed.snapshot; } catch (e) {}
+      this._raw = null;
+    }
+    return this._snap;
+  }
+  set latestSnapshot(v) { this._snap = v; this._raw = null; }
 }
 
 function shuffleArray(arr) {
@@ -214,9 +354,10 @@ function ensureRoomHost(room) {
   if (!room) return;
   const rClients = getRoomClients(room.id);
   if (rClients.length === 0) {
-    rooms.delete(room.id);
+    if (!room.emptySince) room.emptySince = Date.now();   // swept by the ticker after a grace period
     return;
   }
+  room.emptySince = null;
   const currentHostStillHere = rClients.find(
     c => (room.hostToken && c.clientToken === room.hostToken) || c.id === room.hostId
   );
@@ -259,10 +400,7 @@ function buildRoomsListPayload() {
   const roomSummaries = [];
   for (const room of rooms.values()) {
     const rClients = getRoomClients(room.id);
-    if (rClients.length === 0) {
-      rooms.delete(room.id);
-      continue;
-    }
+    if (rClients.length === 0) continue;   // empty rooms are hidden from the browser; the ticker deletes them after a grace period
     ensureRoomHost(room);
     const hostClient = rClients.find(c => c.id === room.hostId) || rClients[0];
     const snap = room.activeMatch && room.activeMatch.latestSnapshot;
@@ -413,13 +551,34 @@ function buildRoomStatePayload(room) {
 function broadcastRoomState(room) {
   if (!room) return;
   if (getRoomClients(room.id).length === 0) {
-    rooms.delete(room.id);
+    if (!room.emptySince) room.emptySince = Date.now();
     broadcastRoomsList();
     return;
   }
   const payload = buildRoomStatePayload(room);
   if (payload) broadcastToRoom(room.id, payload);
   broadcastRoomsList();
+}
+
+function freeMatchSlot(room, i) {
+  const sl = room.activeMatch.slots[i];
+  const info = { playerId: sl.playerId, clientToken: sl.clientToken, name: sl.name };
+  sl.isHuman = false;
+  sl.playerId = -1;
+  sl.clientToken = null;
+  sl.name = null;
+  delete sl.disconnectedAt;
+  const snap = room.activeMatch.latestSnapshot;
+  if (snap && Array.isArray(snap.champions) && snap.champions[i]) {
+    snap.champions[i].isPlayer = false;
+    snap.champions[i].playerId = -1;
+    snap.champions[i].clientToken = null;
+  }
+  return info;
+}
+
+function slotBelongsTo(sl, client) {
+  return Boolean((client.clientToken && sl.clientToken === client.clientToken) || (sl.playerId && sl.playerId === client.id));
 }
 
 function removeClientFromCurrentRoom(client, ws = null) {
@@ -440,19 +599,9 @@ function removeClientFromCurrentRoom(client, ws = null) {
   }
 
   if (room.phase === 'in_game' && room.activeMatch && Array.isArray(room.activeMatch.slots)) {
+    // Explicit leave: the bot takes over immediately (no grace period).
     for (let i = 0; i < room.activeMatch.slots.length; i++) {
-      const sl = room.activeMatch.slots[i];
-      if ((client.clientToken && sl.clientToken === client.clientToken) || sl.playerId === client.id) {
-        sl.isHuman = false;
-        sl.playerId = -1;
-        sl.clientToken = null;
-        sl.name = null;
-        if (room.activeMatch.latestSnapshot && Array.isArray(room.activeMatch.latestSnapshot.champions) && room.activeMatch.latestSnapshot.champions[i]) {
-          room.activeMatch.latestSnapshot.champions[i].isPlayer = false;
-          room.activeMatch.latestSnapshot.champions[i].playerId = -1;
-          room.activeMatch.latestSnapshot.champions[i].clientToken = null;
-        }
-      }
+      if (slotBelongsTo(room.activeMatch.slots[i], client)) freeMatchSlot(room, i);
     }
     broadcastToRoom(room.id, {
       type: 'player_left_match',
@@ -464,7 +613,7 @@ function removeClientFromCurrentRoom(client, ws = null) {
 
   const remaining = getRoomClients(room.id);
   if (remaining.length === 0) {
-    rooms.delete(room.id);
+    room.emptySince = Date.now();
     broadcastRoomsList();
   } else {
     ensureRoomHost(room);
@@ -618,7 +767,7 @@ function launchMatchFromChampSelect(room) {
   room.phase = 'in_game';
   const slots = buildMatchSlots(room);
   const seed = Math.floor(Math.random() * 900000000) + 100000000;
-  room.activeMatch = { aiDiff: room.aiDiff, slots, seed, latestSnapshot: null };
+  room.activeMatch = new ActiveMatch(room.aiDiff, slots, seed);
   for (const c of clients.values()) {
     if (c.roomId === room.id) {
       c.ready = false;
@@ -637,56 +786,205 @@ function launchMatchFromChampSelect(room) {
   broadcastRoomState(room);
 }
 
-// Server-side 1-second ticker for Timed Champion Select across all active rooms
+// Server-side 1-second ticker: champion-select countdown, empty-room sweep, disconnect grace for players.
 setInterval(() => {
+  const now = Date.now();
   for (const room of [...rooms.values()]) {
-    if (getRoomClients(room.id).length === 0) {
-      rooms.delete(room.id);
-      broadcastRoomsList();
-      continue;
-    }
-    if (room.phase === 'champ_select') {
-      room.champSelectTimer--;
-      if (room.champSelectTimer <= 0) {
-        launchMatchFromChampSelect(room);
-      } else {
-        broadcastToRoom(room.id, {
-          type: 'champ_select_tick',
-          roomId: room.id,
-          champSelectTimer: room.champSelectTimer
-        });
+    try {
+      if (getRoomClients(room.id).length === 0) {
+        if (!room.emptySince) room.emptySince = now;
+        const grace = EMPTY_ROOM_GRACE[room.phase] || EMPTY_ROOM_GRACE.lobby;
+        if (now - room.emptySince > grace) {
+          rooms.delete(room.id);
+          broadcastRoomsList();
+        }
+        continue;
       }
+      room.emptySince = null;
+
+      if (room.phase === 'in_game' && room.activeMatch && Array.isArray(room.activeMatch.slots)) {
+        let released = false;
+        for (let i = 0; i < room.activeMatch.slots.length; i++) {
+          const sl = room.activeMatch.slots[i];
+          if (sl.isHuman && sl.disconnectedAt && now - sl.disconnectedAt > SLOT_GRACE_MS) {
+            const info = freeMatchSlot(room, i);
+            broadcastToRoom(room.id, { type: 'player_left_match', playerId: info.playerId, clientToken: info.clientToken, name: info.name });
+            released = true;
+          }
+        }
+        if (released) broadcastRoomState(room);
+      }
+
+      if (room.phase === 'champ_select') {
+        room.champSelectTimer--;
+        if (room.champSelectTimer <= 0) {
+          launchMatchFromChampSelect(room);
+        } else {
+          broadcastToRoom(room.id, {
+            type: 'champ_select_tick',
+            roomId: room.id,
+            champSelectTimer: room.champSelectTimer
+          });
+        }
+      }
+    } catch (e) {
+      console.error('[ticker]', room && room.id, e);
     }
   }
 }, 1000);
 
-const server = http.createServer((req, res) => {
-  if (req.url === '/' || req.url.startsWith('/index.html') || req.url.startsWith('/?')) {
-    const candidates = [
-      path.join(__dirname, 'public', 'index.html'),
-      path.join(__dirname, 'aram_mayhem.html'),
-      path.join(__dirname, 'index.html'),
-      path.join(process.cwd(), 'public', 'index.html'),
-      path.join(process.cwd(), 'aram_mayhem.html'),
-      path.join(process.cwd(), 'index.html')
-    ];
-    const htmlPath = candidates.find(p => fs.existsSync(p));
-    if (htmlPath) {
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' });
-      res.end(fs.readFileSync(htmlPath, 'utf-8'));
-    } else {
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end('<h1>ARAM: Mayhem - index.html not found</h1>');
+// Forget sessions of players who have been gone for hours.
+setInterval(() => {
+  const live = new Set();
+  for (const c of clients.values()) if (c.clientToken) live.add(c.clientToken);
+  const cutoff = Date.now() - 6 * 3600 * 1000;
+  for (const [token, sess] of savedSessions) {
+    if (!live.has(token) && (sess.lastSeen || 0) < cutoff) savedSessions.delete(token);
+  }
+}, 10 * 60 * 1000);
+
+// Server-side WebSocket heartbeat. Browsers answer pings at the network layer even when the tab's JS is
+// throttled in the background, so this keeps proxies from idling the connection out and reaps dead sockets.
+setInterval(() => {
+  const now = Date.now();
+  for (const ws of [...clients.keys()]) {
+    if (now - ws.lastSeen > DEAD_AFTER_MS) ws.terminate();
+    else ws.ping();
+  }
+}, HEARTBEAT_MS);
+
+// Latest-wins fan-out of the host's world snapshot (the raw JSON string is forwarded untouched).
+function handleWorldSyncRaw(ws, client, raw) {
+  const room = client.roomId ? rooms.get(client.roomId) : null;
+  if (!room || room.phase !== 'in_game' || !room.activeMatch) return;
+  const isHost = (room.hostToken && client.clientToken === room.hostToken) || client.id === room.hostId;
+  if (!isHost) return;                          // only the current host may publish world state
+  const match = room.activeMatch;
+  match._raw = raw;
+  match.lastSyncAt = Date.now();
+  const ended = raw.includes('"winner":"');
+  for (const [otherWs, c] of clients) {
+    if (c.roomId === room.id && otherWs !== ws) otherWs.sendLatest(raw);
+  }
+  if (ended) {
+    room.activeMatch = null;
+    room.phase = 'lobby';
+    for (const c of clients.values()) {
+      if (c.roomId === room.id) { c.ready = false; c.locked = false; }
     }
-  } else {
-    res.writeHead(404);
-    res.end('Not Found');
+    broadcastRoomState(room);
+  }
+}
+
+// Small, high-rate packets (positions) are simply skipped for clients that are already backed up.
+function broadcastDroppable(roomId, msgObj, excludeWs = null) {
+  const raw = JSON.stringify(msgObj);
+  for (const [ws, c] of clients) {
+    if (c.roomId === roomId && ws !== excludeWs && ws.readyState === 1 && ws.backlog < SYNC_BACKLOG_LIMIT) ws.send(raw);
+  }
+}
+
+// ═══ STATIC FILES (everything inside /public) ═══
+const MIME = {
+  '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.txt': 'text/plain; charset=utf-8',
+  '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif',
+  '.webp': 'image/webp', '.ico': 'image/x-icon', '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.wav': 'audio/wav',
+  '.woff': 'font/woff', '.woff2': 'font/woff2', '.ttf': 'font/ttf', '.map': 'application/json; charset=utf-8',
+  '.webmanifest': 'application/manifest+json'
+};
+const COMPRESSIBLE = new Set(['.html', '.js', '.mjs', '.css', '.json', '.txt', '.svg', '.map', '.webmanifest']);
+const staticCache = new Map();    // absolute path -> { mtimeMs, size, raw, gzip, etag, type, cache }
+
+function sendText(res, code, text) {
+  res.writeHead(code, { 'Content-Type': 'text/plain; charset=utf-8', 'X-Content-Type-Options': 'nosniff' });
+  res.end(text);
+}
+
+function serveStatic(req, res) {
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    res.writeHead(405, { Allow: 'GET, HEAD' });
+    res.end();
+    return;
+  }
+  let urlPath;
+  try {
+    urlPath = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
+  } catch (e) { return sendText(res, 400, 'Bad Request'); }
+  if (urlPath.includes('\0')) return sendText(res, 400, 'Bad Request');
+
+  if (urlPath === '/healthz') return sendText(res, 200, 'ok');
+  if (urlPath === '/' || urlPath === '/aram_mayhem.html') urlPath = '/index.html';
+
+  let abs = path.normalize(path.join(PUBLIC_DIR, urlPath));
+  if (abs !== PUBLIC_DIR && !abs.startsWith(PUBLIC_DIR + path.sep)) return sendText(res, 403, 'Forbidden');
+
+  let st;
+  try {
+    st = fs.statSync(abs);
+    if (st.isDirectory()) { abs = path.join(abs, 'index.html'); st = fs.statSync(abs); }
+  } catch (e) {
+    return sendText(res, 404, 'Not Found');
+  }
+  if (!st.isFile()) return sendText(res, 404, 'Not Found');
+
+  const ext = path.extname(abs).toLowerCase();
+  const type = MIME[ext] || 'application/octet-stream';
+  const cacheControl = ext === '.html' ? 'no-cache' : 'public, max-age=86400';
+  const etag = `W/"${st.size.toString(16)}-${Math.floor(st.mtimeMs).toString(16)}"`;
+
+  if (req.headers['if-none-match'] === etag) {
+    res.writeHead(304, { ETag: etag, 'Cache-Control': cacheControl });
+    res.end();
+    return;
+  }
+
+  const headers = { 'Content-Type': type, ETag: etag, 'Cache-Control': cacheControl, 'X-Content-Type-Options': 'nosniff', Vary: 'Accept-Encoding' };
+
+  if (st.size > 8 * 1024 * 1024) {                        // big media: stream it, no in-memory cache
+    headers['Content-Length'] = st.size;
+    res.writeHead(200, headers);
+    if (req.method === 'HEAD') return res.end();
+    fs.createReadStream(abs).on('error', () => res.destroy()).pipe(res);
+    return;
+  }
+
+  let entry = staticCache.get(abs);
+  if (!entry || entry.mtimeMs !== st.mtimeMs || entry.size !== st.size) {
+    const raw = fs.readFileSync(abs);
+    entry = { mtimeMs: st.mtimeMs, size: st.size, raw, gzip: COMPRESSIBLE.has(ext) ? zlib.gzipSync(raw, { level: 9 }) : null };
+    staticCache.set(abs, entry);
+  }
+  const wantsGzip = entry.gzip && /\bgzip\b/.test(req.headers['accept-encoding'] || '');
+  const body = wantsGzip ? entry.gzip : entry.raw;
+  if (wantsGzip) headers['Content-Encoding'] = 'gzip';
+  headers['Content-Length'] = body.length;
+  res.writeHead(200, headers);
+  res.end(req.method === 'HEAD' ? undefined : body);
+}
+
+const server = http.createServer((req, res) => {
+  try { serveStatic(req, res); } catch (e) {
+    console.error('[http]', e);
+    if (!res.headersSent) sendText(res, 500, 'Internal Server Error');
+    else res.destroy();
   }
 });
+server.keepAliveTimeout = 65000;     // longer than common proxy idle timeouts
+server.headersTimeout = 70000;
 
-server.on('upgrade', (req, socket) => {
+server.on('upgrade', (req, socket, head) => {
+  socket.on('error', () => {});
   const key = req.headers['sec-websocket-key'];
-  if (!key) { socket.destroy(); return; }
+  if (!key || String(req.headers.upgrade || '').toLowerCase() !== 'websocket' || req.headers['sec-websocket-version'] !== '13') {
+    socket.destroy();
+    return;
+  }
+  if (clients.size >= MAX_CLIENTS) {
+    socket.write('HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\n\r\n');
+    socket.destroy();
+    return;
+  }
 
   const accept = crypto.createHash('sha1').update(key + WS_MAGIC).digest('base64');
   const headers = [
@@ -717,6 +1015,10 @@ server.on('upgrade', (req, socket) => {
 
   ws.onmessage = (raw) => {
     try {
+      if (raw.startsWith('{"type":"world_sync"')) {   // hot path: forward the host snapshot without re-parsing it
+        handleWorldSyncRaw(ws, client, raw);
+        return;
+      }
       const msg = JSON.parse(raw);
 
       if (msg.type === 'ping_hb') {
@@ -789,6 +1091,7 @@ server.on('upgrade', (req, socket) => {
               s => (s.clientToken && s.clientToken === client.clientToken) || (s.playerId && s.playerId === client.id)
             );
             if (inActiveMatch) {
+              delete inActiveMatch.disconnectedAt;     // came back within the grace period: keep the champion
               inActiveMatch.playerId = client.id;
               inActiveMatch.clientToken = client.clientToken;
               ws.send({
@@ -864,6 +1167,7 @@ server.on('upgrade', (req, socket) => {
             }
           }
           const mySlot = mySlotIdx !== -1 ? targetRoom.activeMatch.slots[mySlotIdx] : null;
+          if (mySlot) delete mySlot.disconnectedAt;
           ws.send({
             type: 'match_start',
             roomId: targetRoom.id,
@@ -944,6 +1248,7 @@ server.on('upgrade', (req, socket) => {
         }
 
         const mySlot = mySlotIdx !== -1 ? room.activeMatch.slots[mySlotIdx] : null;
+        if (mySlot) delete mySlot.disconnectedAt;
         ws.send({
           type: 'match_start',
           roomId: room.id,
@@ -1160,29 +1465,28 @@ server.on('upgrade', (req, socket) => {
           action: msg.action
         }, ws);
       } else if (msg.type === 'player_state') {
-        broadcastToRoom(room.id, {
+        broadcastDroppable(room.id, {
           type: 'player_state',
           champIdx: msg.champIdx,
           state: msg.state
         }, ws);
       } else if (msg.type === 'world_sync') {
-        if (room.activeMatch && msg.snapshot) {
+        // Fallback path (non-canonical key order). Same rules as the fast path: host only, latest wins.
+        if (isHost && room.activeMatch && msg.snapshot) {
           room.activeMatch.latestSnapshot = msg.snapshot;
+          room.activeMatch.lastSyncAt = Date.now();
+          const out = JSON.stringify({ type: 'world_sync', hostId: room.hostId, hostToken: room.hostToken, snapshot: msg.snapshot });
+          for (const [otherWs, c] of clients) {
+            if (c.roomId === room.id && otherWs !== ws) otherWs.sendLatest(out);
+          }
           if (msg.snapshot.winner) {
             room.activeMatch = null;
             room.phase = 'lobby';
+            broadcastRoomState(room);
           }
         }
-        if (isHost) {
-          broadcastToRoom(room.id, {
-            type: 'world_sync',
-            hostId: room.hostId,
-            hostToken: room.hostToken,
-            snapshot: msg.snapshot
-          }, ws);
-        }
       }
-    } catch (e) {}
+    } catch (e) { console.error('[msg]', e && e.message); }
   };
 
   ws.onclose = () => {
@@ -1200,27 +1504,37 @@ server.on('upgrade', (req, socket) => {
       const room = rooms.get(oldRoomId);
       const stillInRoom = getRoomClients(oldRoomId);
       if (stillInRoom.length === 0) {
-        rooms.delete(oldRoomId);
+        // Keep the room (and its running match) alive for a grace period so a brief network blip can rejoin.
+        room.emptySince = Date.now();
+        if (room.phase === 'in_game' && room.activeMatch && Array.isArray(room.activeMatch.slots)) {
+          for (const sl of room.activeMatch.slots) {
+            if (sl.isHuman && slotBelongsTo(sl, client) && client.clientToken) sl.disconnectedAt = Date.now();
+          }
+        }
         broadcastRoomsList();
       } else {
         // Check if this clientToken still has another active socket in the room
         const tokenStillConnected = stillInRoom.some(c => c.clientToken && c.clientToken === client.clientToken);
         if (!tokenStillConnected && room.phase === 'in_game' && room.activeMatch && Array.isArray(room.activeMatch.slots)) {
+          let freedAny = false;
           for (let i = 0; i < room.activeMatch.slots.length; i++) {
             const sl = room.activeMatch.slots[i];
-            if ((client.clientToken && sl.clientToken === client.clientToken) || sl.playerId === client.id) {
-              sl.isHuman = false;
-              sl.playerId = -1;
-              sl.clientToken = null;
-              sl.name = null;
+            if (!slotBelongsTo(sl, client)) continue;
+            if (client.clientToken) {
+              sl.disconnectedAt = Date.now();      // grace period: the ticker hands it to a bot if they stay away
+            } else {
+              freeMatchSlot(room, i);
+              freedAny = true;
             }
           }
-          broadcastToRoom(oldRoomId, {
-            type: 'player_left_match',
-            playerId: client.id,
-            clientToken: client.clientToken,
-            name: client.name
-          });
+          if (freedAny) {
+            broadcastToRoom(oldRoomId, {
+              type: 'player_left_match',
+              playerId: client.id,
+              clientToken: client.clientToken,
+              name: client.name
+            });
+          }
         }
         ensureRoomHost(room);
         if (room.phase === 'champ_select') {
@@ -1242,6 +1556,17 @@ function getLocalIP() {
     }
   }
   return '127.0.0.1';
+}
+
+process.on('uncaughtException', e => console.error('[uncaughtException]', e));
+process.on('unhandledRejection', e => console.error('[unhandledRejection]', e));
+for (const sig of ['SIGTERM', 'SIGINT']) {
+  process.on(sig, () => {
+    console.log(`${sig} received, shutting down`);
+    for (const ws of clients.keys()) ws.close(1001);
+    server.close(() => process.exit(0));
+    setTimeout(() => process.exit(0), 3000).unref();
+  });
 }
 
 server.listen(PORT, '0.0.0.0', () => {

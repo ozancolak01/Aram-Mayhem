@@ -1,6 +1,8 @@
-/.git
-/node_modules
-.dockerignore
+.git
+node_modules
 .env
+.dockerignore
 Dockerfile
 fly.toml
+README.md
+public/tailwind.css
