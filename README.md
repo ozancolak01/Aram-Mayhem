@@ -5,6 +5,8 @@ Node.js server for multiplayer lobbies. Play solo against bots, or create a room
 
 ## Quick start
 
+**Windows:** double-click `start-server.bat`. **macOS / Linux:** `./start-server.sh`. Or by hand:
+
 ```bash
 npm install          # only needed for the Tailwind build; the server itself has no runtime dependencies
 npm run build:css    # compiles public/tailwind.css (optional: the page falls back to the Tailwind CDN without it)
@@ -13,6 +15,32 @@ npm start            # http://localhost:3000
 
 The server prints a LAN address too (e.g. `http://192.168.1.20:3000`) so phones and other PCs on the same
 network can join. Node.js 18+ is required. Set `PORT` to change the port.
+
+### Playing with friends who are not on your network
+
+Run a free Cloudflare quick tunnel next to the server: `start-tunnel.bat` / `./start-tunnel.sh` (install
+`cloudflared` once: `winget install --id Cloudflare.cloudflared` on Windows). It prints an
+`https://….trycloudflare.com` link; friends open it in their browser (the game switches to `wss://` automatically).
+The link changes every time you start the tunnel. Your PC must stay on while you play.
+
+Tip: the host's browser runs the match, so the best host is the player with the strongest PC and connection, and
+that player should also run the server (their own connection to it is then local).
+
+### Playing on phones
+
+Open the same link on the phone (the LAN address or the tunnel link). The game detects touch devices and switches
+to its mobile layout with a joystick and on-screen buttons; turn the phone to **landscape** (the game asks for
+fullscreen + landscape on first touch).
+
+* **Best setup: a PC is the host.** The host's device runs the whole match, which is heavy for a phone and stops
+  the moment the phone's screen locks or the browser goes to the background. Phones are great as players.
+* **If the host's snapshots stop for 5 s** (phone locked, tab suspended) the server automatically moves the host role
+  to another player, preferring a desktop, and the match continues. The old host rejoins as a normal player.
+* **Screen stays on** during play on `https` links (the tunnel link) via the Screen Wake Lock API. On plain
+  `http://192.168…` LAN addresses browsers do not allow wake locks, so turn off auto-lock for the session or use the tunnel link.
+* **Dead connections are detected** (Wi-Fi to mobile data, locked screen): the match freezes, the phone reconnects by
+  itself, and when you unlock the phone it reconnects immediately.
+* Add the page to the home screen (Share / menu → *Add to Home Screen*) for a browser-bar-free fullscreen view.
 
 ## How to play
 
@@ -69,21 +97,31 @@ and a relay:
   client **freezes** the match instead of simulating a private copy.
 * **Rooms outlive blips.** A room with nobody connected is kept for 15 s (lobby), 30 s (champion select) or
   120 s (running match) before it is deleted.
-* **Background tabs.** The host's simulation keeps running (via a Web Worker timer) when the tab is hidden, so
-  alt-tabbing does not freeze everyone else. Phones may still suspend a backgrounded browser, so the host should keep
-  the game in the foreground.
+* **Background tabs.** On desktop the host's simulation keeps running (via a Web Worker timer) when the tab is hidden,
+  so alt-tabbing does not freeze everyone else. Phones suspend background browsers, which is why the server can
+  hand the host role to another player (see *Playing on phones*).
 * **Hardened WebSocket layer:** 512 KB message limit (checked before buffering), fragmentation support, masked-frame
   validation, proper ping/pong/close handshake, server heartbeat every 15 s (keeps Fly/Render proxies from idling the
   connection out), per-client rate limiting and a 500-connection cap.
+
+## Diagnostics
+
+* `GET /stats` (local only; behind a tunnel set `STATS_KEY=secret` and open `/stats?key=secret`) lists rooms, who is
+  host, and for every player how stale their view of the match is (`snapshotAgeMs`) and whether the host's tab is hidden.
+* The server logs a `[sync]` warning whenever a non-host has not applied a host snapshot for 2.5 s or more, with
+  the likely culprit (their socket backlog, or a hidden host tab).
+* Player names, room names and chat are stripped of `<` `>` and escaped again by the client before display.
 
 ## Static files
 
 Everything in `public/` is served (with gzip, ETag and path-traversal protection). Add images or sounds there and
 reference them as `/my-file.png`. `GET /healthz` returns `ok` for health checks.
 
-## Deploying
+## Deploying (optional, instead of running on your PC)
 
 State (rooms, running matches) lives in the memory of a single server process, so **run exactly one instance**.
+Free always-on hosting for a running server mostly no longer exists; a cheap VPS or your own PC plus a tunnel are the
+reliable options.
 
 **Fly.io**
 ```bash

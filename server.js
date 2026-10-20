@@ -20,12 +20,16 @@ const WS_MAGIC = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 // ── Network tuning ──────────────────────────────────────────────────────────
 const MAX_MESSAGE_BYTES   = 512 * 1024;       // largest accepted WebSocket message (a full world snapshot is ~30-60 KB)
 const MAX_CLIENTS         = 500;              // hard cap on simultaneous sockets
+const MAX_PER_IP          = 40;               // sockets per source address (reads cf-connecting-ip / x-forwarded-for behind a tunnel)
+const MAX_ROOMS           = 150;              // hard cap on rooms
+const STATS_KEY           = process.env.STATS_KEY || '';
 const SYNC_BACKLOG_LIMIT  = 128 * 1024;       // if a socket has more than this queued, stale snapshots are dropped
 const MAX_BACKLOG_BYTES   = 8 * 1024 * 1024;  // a socket this far behind is dead: drop it instead of leaking memory
 const RATE_BURST          = 400;              // per-client message token bucket (host needs ~45 msg/s)
 const RATE_PER_SEC        = 200;
 const HEARTBEAT_MS        = 15000;            // server -> client WebSocket ping (keeps Fly/Render proxies from idling us out)
 const DEAD_AFTER_MS       = 60000;            // no bytes (not even a pong) for this long = dead socket
+const HOST_STALL_MS       = Number(process.env.HOST_STALL_MS) || 5000;   // host silent this long => move the simulation to another player
 const SLOT_GRACE_MS       = Number(process.env.SLOT_GRACE_MS) || 25000;            // a disconnected player keeps their champion this long before a bot takes over
 const EMPTY_ROOM_GRACE = { lobby: 15000, champ_select: 30000, in_game: 120000 };
 
@@ -257,6 +261,12 @@ class ActiveMatch {
   set latestSnapshot(v) { this._snap = v; this._raw = null; }
 }
 
+// Player-supplied text (names, room names, chat): drop control characters and angle brackets, collapse spaces.
+// The client escapes everything it renders too; this is defense in depth so markup never travels through the server.
+function cleanText(v, max) {
+  return String(v == null ? '' : v).replace(/[\u0000-\u001f\u007f<>]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
+}
+
 function shuffleArray(arr) {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -320,7 +330,7 @@ function createRoom(hostClient, opts = {}) {
   const preset = opts.preset || '3v3';
   const room = {
     id: roomId,
-    name: String(opts.name || `${hostClient ? hostClient.name : 'Sihirdar'} Lobisi`).slice(0, 28),
+    name: cleanText(opts.name || `${hostClient ? hostClient.name : 'Sihirdar'} Lobisi`, 28),
     hostId: hostClient ? hostClient.id : 1,
     hostToken: hostClient ? hostClient.clientToken : null,
     phase: 'lobby', // 'lobby' | 'champ_select' | 'in_game'
@@ -802,6 +812,26 @@ setInterval(() => {
       }
       room.emptySince = null;
 
+      // Host failover: the host's device simulates the match. If its snapshots stop (phone locked or backgrounded,
+      // browser suspended) while the socket is still open, hand the simulation to another player so the match goes on.
+      if (room.phase === 'in_game' && room.activeMatch && room.activeMatch.lastSyncAt && now - room.activeMatch.lastSyncAt > HOST_STALL_MS) {
+        const rc = getRoomClients(room.id);
+        const isHostC = c => (room.hostToken && c.clientToken === room.hostToken) || c.id === room.hostId;
+        const hostC = rc.find(isHostC);
+        const others = rc.filter(c => c !== hostC && c.clientToken !== (hostC && hostC.clientToken));
+        if (hostC && others.length) {
+          const fresh = others.filter(c => c.report && now - c.report.at < 15000 && !c.report.hidden);
+          const pool = fresh.length ? fresh : others;
+          pool.sort((a, b) => Number(Boolean(a.report && a.report.mobile)) - Number(Boolean(b.report && b.report.mobile)));   // prefer a desktop
+          const nh = pool[0];
+          room.hostId = nh.id;
+          room.hostToken = nh.clientToken;
+          room.activeMatch.lastSyncAt = now;       // give the new host a fresh window before judging it
+          console.log(`[host] ${hostC.name} stopped sending snapshots in room ${room.id}; host moved to ${nh.name}${nh.report && nh.report.mobile ? ' (mobile)' : ''}`);
+          broadcastToRoom(room.id, { type: 'host_migrated', roomId: room.id, hostId: room.hostId, hostToken: room.hostToken, reason: 'stalled' });
+        }
+      }
+
       if (room.phase === 'in_game' && room.activeMatch && Array.isArray(room.activeMatch.slots)) {
         let released = false;
         for (let i = 0; i < room.activeMatch.slots.length; i++) {
@@ -856,9 +886,19 @@ setInterval(() => {
 // Latest-wins fan-out of the host's world snapshot (the raw JSON string is forwarded untouched).
 function handleWorldSyncRaw(ws, client, raw) {
   const room = client.roomId ? rooms.get(client.roomId) : null;
-  if (!room || room.phase !== 'in_game' || !room.activeMatch) return;
+  if (!room) return;
   const isHost = (room.hostToken && client.clientToken === room.hostToken) || client.id === room.hostId;
   if (!isHost) return;                          // only the current host may publish world state
+  if (room.phase !== 'in_game' || !room.activeMatch) {
+    // The host's end_match message usually arrives BEFORE its final snapshot (the one carrying the winner),
+    // and everybody else learns the result from that snapshot, so it must still be relayed.
+    if (raw.includes('"winner":"')) {
+      for (const [otherWs, c] of clients) {
+        if (c.roomId === room.id && otherWs !== ws) otherWs.sendLatest(raw);
+      }
+    }
+    return;
+  }
   const match = room.activeMatch;
   match._raw = raw;
   match.lastSyncAt = Date.now();
@@ -882,6 +922,54 @@ function broadcastDroppable(roomId, msgObj, excludeWs = null) {
   for (const [ws, c] of clients) {
     if (c.roomId === roomId && ws !== excludeWs && ws.readyState === 1 && ws.backlog < SYNC_BACKLOG_LIMIT) ws.send(raw);
   }
+}
+
+// ═══ Connection bookkeeping / diagnostics ═══
+const ipCounts = new Map();
+function clientIp(req) {
+  const h = req.headers;
+  return String(h['cf-connecting-ip'] || (h['x-forwarded-for'] || '').split(',')[0].trim() || (req.socket && req.socket.remoteAddress) || 'unknown');
+}
+
+// Warn (at most every 30 s per player) when a non-host has not applied a world snapshot for a while.
+const lagWarnedAt = new Map();
+setInterval(() => {
+  const now = Date.now();
+  for (const [ws, c] of clients) {
+    const r = c.report;
+    if (!r || r.host || now - r.at > 15000 || r.age < 2500) continue;
+    if (now - (lagWarnedAt.get(c.id) || 0) < 30000) continue;
+    lagWarnedAt.set(c.id, now);
+    const room = c.roomId ? rooms.get(c.roomId) : null;
+    const hostC = room ? [...clients.values()].find(x => x.roomId === room.id && ((room.hostToken && x.clientToken === room.hostToken) || x.id === room.hostId)) : null;
+    const hostRep = hostC && hostC.report;
+    console.log(`[sync] ${c.name} (room ${c.roomId}) has not applied a host snapshot for ${r.age} ms; ` +
+      `socket backlog ${ws.backlog} B; host ${hostC ? hostC.name : '?'} ${hostRep ? (hostRep.hidden ? 'tab HIDDEN' : 'tab visible') + `, last report ${now - hostRep.at} ms ago` : 'sent no report'}`);
+  }
+  for (const id of [...lagWarnedAt.keys()]) if (now - lagWarnedAt.get(id) > 300000) lagWarnedAt.delete(id);
+}, 5000);
+
+function statsPayload() {
+  const now = Date.now();
+  const out = { uptimeSec: Math.round(process.uptime()), clients: clients.size, rooms: [] };
+  for (const room of rooms.values()) {
+    const rc = getRoomClients(room.id);
+    const hostC = [...clients.values()].find(x => x.roomId === room.id && ((room.hostToken && x.clientToken === room.hostToken) || x.id === room.hostId));
+    out.rooms.push({
+      id: room.id, name: room.name, phase: room.phase, humans: rc.length,
+      host: hostC ? hostC.name : null,
+      lastSyncMsAgo: room.activeMatch && room.activeMatch.lastSyncAt ? now - room.activeMatch.lastSyncAt : null,
+      players: rc.map(c => ({
+        name: c.name,
+        isHost: Boolean(hostC && c.id === hostC.id),
+        reportAgeMs: c.report ? now - c.report.at : null,
+        snapshotAgeMs: c.report && !c.report.host ? c.report.age : null,
+        gameTime: c.report ? Math.round(c.report.t) : null,
+        tabHidden: c.report ? c.report.hidden : null
+      }))
+    });
+  }
+  return out;
 }
 
 // ═══ STATIC FILES (everything inside /public) ═══
@@ -914,6 +1002,15 @@ function serveStatic(req, res) {
   if (urlPath.includes('\0')) return sendText(res, 400, 'Bad Request');
 
   if (urlPath === '/healthz') return sendText(res, 200, 'ok');
+  if (urlPath === '/stats') {
+    // Contains player names: local-only unless STATS_KEY is set and passed as ?key=...
+    const viaProxy = Boolean(req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for']);
+    const key = new URL(req.url, 'http://localhost').searchParams.get('key') || '';
+    if (STATS_KEY ? key !== STATS_KEY : viaProxy) return sendText(res, 403, 'Forbidden');
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+    res.end(JSON.stringify(statsPayload(), null, 2));
+    return;
+  }
   if (urlPath === '/' || urlPath === '/aram_mayhem.html') urlPath = '/index.html';
 
   let abs = path.normalize(path.join(PUBLIC_DIR, urlPath));
@@ -980,11 +1077,13 @@ server.on('upgrade', (req, socket, head) => {
     socket.destroy();
     return;
   }
-  if (clients.size >= MAX_CLIENTS) {
+  const ipKey = clientIp(req);
+  if (clients.size >= MAX_CLIENTS || (ipCounts.get(ipKey) || 0) >= MAX_PER_IP) {
     socket.write('HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\n\r\n');
     socket.destroy();
     return;
   }
+  ipCounts.set(ipKey, (ipCounts.get(ipKey) || 0) + 1);
 
   const accept = crypto.createHash('sha1').update(key + WS_MAGIC).digest('base64');
   const headers = [
@@ -1020,9 +1119,23 @@ server.on('upgrade', (req, socket, head) => {
         return;
       }
       const msg = JSON.parse(raw);
+      if (!msg || typeof msg !== 'object' || typeof msg.type !== 'string') return;
 
       if (msg.type === 'ping_hb') {
         ws.send({ type: 'pong_hb', ts: msg.ts });
+        return;
+      }
+
+      if (msg.type === 'sync_report') {
+        // Diagnostics only: how far behind the host is this client? Shown in /stats and logged when it gets bad.
+        client.report = {
+          at: Date.now(),
+          t: Number(msg.t) || 0,
+          age: Math.min(60000, Math.max(0, Number(msg.age) || 0)),
+          host: Boolean(msg.host),
+          hidden: Boolean(msg.hidden),
+          mobile: Boolean(msg.mobile)
+        };
         return;
       }
 
@@ -1061,7 +1174,7 @@ server.on('upgrade', (req, socket, head) => {
         }
 
         if (msg.name && msg.name !== 'Summoner' && !msg.name.startsWith('Oyuncu ')) {
-          client.name = String(msg.name).slice(0, 16);
+          client.name = cleanText(msg.name, 16) || client.name;
         }
         if (msg.spellD) client.spellD = msg.spellD;
         if (msg.spellF) client.spellF = msg.spellF;
@@ -1119,6 +1232,7 @@ server.on('upgrade', (req, socket, head) => {
       }
 
       if (msg.type === 'create_room') {
+        if (rooms.size >= MAX_ROOMS) { ws.send({ type: 'error_msg', text: 'Sunucu dolu / Server is full' }); return; }
         removeClientFromCurrentRoom(client, ws);
         const room = createRoom(client, {
           name: msg.name || `${client.name} Lobisi`,
@@ -1276,7 +1390,7 @@ server.on('upgrade', (req, socket, head) => {
       }
 
       if (msg.type === 'set_name') {
-        client.name = String(msg.name || '').slice(0, 16) || client.name;
+        client.name = cleanText(msg.name, 16) || client.name;
         if (client.clientToken && savedSessions.has(client.clientToken)) {
           savedSessions.get(client.clientToken).name = client.name;
         }
@@ -1430,7 +1544,7 @@ server.on('upgrade', (req, socket, head) => {
         if (msg.spellF) client.spellF = msg.spellF;
         broadcastRoomState(room);
       } else if (msg.type === 'chat') {
-        const txt = String(msg.text || '').slice(0, 120).trim();
+        const txt = cleanText(msg.text, 120);
         if (txt) {
           broadcastToRoom(room.id, { type: 'chat', sender: client.name, text: txt, team: client.team });
         }
@@ -1472,7 +1586,12 @@ server.on('upgrade', (req, socket, head) => {
         }, ws);
       } else if (msg.type === 'world_sync') {
         // Fallback path (non-canonical key order). Same rules as the fast path: host only, latest wins.
-        if (isHost && room.activeMatch && msg.snapshot) {
+        if (isHost && !room.activeMatch && msg.snapshot && msg.snapshot.winner) {
+          const out = JSON.stringify({ type: 'world_sync', snapshot: msg.snapshot });   // final snapshot after end_match
+          for (const [otherWs, c] of clients) {
+            if (c.roomId === room.id && otherWs !== ws) otherWs.sendLatest(out);
+          }
+        } else if (isHost && room.activeMatch && msg.snapshot) {
           room.activeMatch.latestSnapshot = msg.snapshot;
           room.activeMatch.lastSyncAt = Date.now();
           const out = JSON.stringify({ type: 'world_sync', hostId: room.hostId, hostToken: room.hostToken, snapshot: msg.snapshot });
@@ -1490,6 +1609,8 @@ server.on('upgrade', (req, socket, head) => {
   };
 
   ws.onclose = () => {
+    const left = (ipCounts.get(ipKey) || 1) - 1;
+    if (left <= 0) ipCounts.delete(ipKey); else ipCounts.set(ipKey, left);
     if (client.clientToken) {
       savedSessions.set(client.clientToken, {
         id: client.id, name: client.name, champId: client.champId,
