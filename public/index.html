@@ -7356,6 +7356,7 @@ function renderMinimap() {
 
 let isLanHost = true;
 let netReconnecting = false;      // true while a live match is frozen waiting for the socket to come back
+let lastSyncAppliedAt = performance.now();   // when this client last applied a host snapshot (diagnostics)
 let netReconnectAttempt = 0;
 function setNetOverlay(visible, text) {
   let el = document.getElementById('netOverlay');
@@ -7552,14 +7553,43 @@ function syncBotSettings() {
 }
 
 // ═══ LAN WEBSOCKET CLIENT ═══
+let lastServerMsgAt = Date.now();
+let reconnectTimer = null;
+
+function scheduleReconnect(delay) {
+  if (reconnectTimer) clearTimeout(reconnectTimer);
+  reconnectTimer = setTimeout(() => { reconnectTimer = null; connectLanServer(); }, delay);
+}
+
+// Called whenever the socket is gone (closed, failed to open, or declared dead by the watchdog).
+function onSocketClosed(closedWs) {
+  if (closedWs !== ws) return;          // a stale socket from an earlier attempt: ignore
+  lanConnected = false;
+  if (inGame && currentRoomId) {
+    // Do NOT fall back to "solo host" here: a dropped player that keeps simulating on their own is exactly what
+    // makes towers/fights differ between players. Freeze the match and resync from the server on reconnect.
+    netReconnecting = true;
+    setNetOverlay(true, 'Bağlantı koptu — yeniden bağlanılıyor… / Connection lost — reconnecting…');
+  } else {
+    isLanHost = true;
+  }
+  netReconnectAttempt++;
+  scheduleReconnect(Math.min(4000, 500 * netReconnectAttempt));
+}
+
 function connectLanServer() {
   if (!location.host) return;
+  if (ws && (ws.readyState === 0 || ws.readyState === 1)) return;   // already connecting / connected
   try {
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-    ws = new WebSocket(`${proto}://${location.host}`);
-    ws.onopen = () => {
+    const sock = new WebSocket(`${proto}://${location.host}`);
+    ws = sock;
+    lastServerMsgAt = Date.now();
+    sock.onopen = () => {
+      if (sock !== ws) return;
       lanConnected = true;
       netReconnectAttempt = 0;
+      lastServerMsgAt = Date.now();
       let savedName = document.getElementById('summonerNameInput').value.trim();
       try {
         const sn = localStorage.getItem('aram_mayhem_name');
@@ -7578,27 +7608,54 @@ function connectLanServer() {
         spellF: document.getElementById('spellFSelect').value
       });
     };
-    ws.onmessage = (ev) => {
+    sock.onmessage = (ev) => {
+      lastServerMsgAt = Date.now();
       try {
         const msg = JSON.parse(ev.data);
         handleLanMessage(msg);
       } catch (e) {}
     };
-    ws.onclose = () => {
-      lanConnected = false;
-      if (inGame && currentRoomId) {
-        // Do NOT fall back to "solo host" here: a dropped player that keeps simulating on their own is exactly what
-        // makes towers/fights differ between players. Freeze the match and resync from the server on reconnect.
-        netReconnecting = true;
-        setNetOverlay(true, 'Bağlantı koptu — yeniden bağlanılıyor… / Connection lost — reconnecting…');
-      } else {
-        isLanHost = true;
-      }
-      netReconnectAttempt++;
-      setTimeout(connectLanServer, Math.min(5000, 700 * netReconnectAttempt));
-    };
-  } catch (e) {}
+    sock.onclose = () => onSocketClosed(sock);
+    sock.onerror = () => {};   // onclose always follows
+  } catch (e) {
+    scheduleReconnect(2000);
+  }
 }
+
+// Phones kill sockets silently (screen lock, Wi-Fi <-> mobile data). The server heartbeat and the game's own
+// ping mean we hear from it at least every few seconds, so prolonged silence = dead socket: drop it and reconnect.
+setInterval(() => {
+  if (ws && ws.readyState === 1 && Date.now() - lastServerMsgAt > 9000) {
+    const dead = ws;
+    dead.onclose = null; dead.onmessage = null;
+    try { dead.close(); } catch (e) {}
+    onSocketClosed(dead);
+  }
+}, 2000);
+
+// Keep the phone screen awake while playing (needs https or localhost; silently skipped on plain http LAN addresses).
+let wakeLockSentinel = null;
+async function acquireWakeLock() {
+  try {
+    if (!navigator.wakeLock || document.hidden || wakeLockSentinel) return;
+    wakeLockSentinel = await navigator.wakeLock.request('screen');
+    wakeLockSentinel.addEventListener('release', () => { wakeLockSentinel = null; });
+  } catch (e) { wakeLockSentinel = null; }
+}
+window.addEventListener('pointerdown', acquireWakeLock, { passive: true });
+
+// Coming back to the tab (unlock the phone, switch apps): reconnect right away instead of waiting for timers.
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) return;
+  acquireWakeLock();
+  if (!ws || ws.readyState === 2 || ws.readyState === 3) {
+    if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+    connectLanServer();
+  } else if (ws.readyState === 1) {
+    lastServerMsgAt = Math.min(lastServerMsgAt, Date.now() - 4000);   // make the watchdog re-check soon
+    sendWs({ type: 'ping_hb', ts: Date.now() });
+  }
+});
 
 function sendWs(obj) {
   if (ws && ws.readyState === 1) {
@@ -7806,6 +7863,8 @@ function handleLanMessage(msg) {
   } else if (msg.type === 'chat') {
     appendChatMessage(msg.sender, msg.text, msg.team);
   } else if (msg.type === 'match_start') {
+    lastSyncAppliedAt = performance.now();
+    acquireWakeLock();
     if (netReconnecting) { netReconnecting = false; setNetOverlay(false); }
     lobbyPhase = 'lobby';
     if (msg.roomId) currentRoomId = msg.roomId;
@@ -7912,6 +7971,7 @@ function handleLanMessage(msg) {
       if (typeof msg.state.facing === 'number') rc.facing = msg.state.facing;
     }
   } else if (msg.type === 'world_sync' && G && (!isLanHost || isSpectatorMode)) {
+    lastSyncAppliedAt = performance.now();
     applyWorldSync(msg.snapshot);
   }
 }
@@ -8036,6 +8096,19 @@ function applyPlayerAction(cIdx, act) {
 }
 
 let lastWorldSyncSeq = 0;
+
+// Every 5 s tell the server how fresh our view of the match is (feeds the server's /stats page and lag warnings).
+setInterval(() => {
+  if (!lanConnected || !inGame || !G || netReconnecting) return;
+  sendWs({
+    type: 'sync_report',
+    t: G.time,
+    host: Boolean(isLanHost && !isSpectatorMode),
+    hidden: Boolean(document.hidden),
+    mobile: Boolean(isMobileMode),
+    age: Math.round(performance.now() - lastSyncAppliedAt)
+  });
+}, 5000);
 
 // ═══ NETWORK TICK (player positions + host world snapshots) ═══
 let _joySyncAccum = 0;
@@ -8438,12 +8511,16 @@ function applyWorldSync(snap, isInitialRejoin = false) {
 }
 
 // ═══ PARTY & IN-GAME CHAT ═══
+function esc(v) {
+  return String(v == null ? '' : v).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+}
+
 function appendChatMessage(sender, text, team) {
   chatMessages.push({ sender, text, team });
   if (chatMessages.length > 40) chatMessages.shift();
   const renderHtml = chatMessages.map(m => {
     const col = m.team === BLUE ? 'text-[#0ac8b9]' : m.team === RED ? 'text-[#e84057]' : 'text-[#c8aa6e]';
-    return `<div><b class="${col}">${m.sender}:</b> <span class="text-[#f0e6d2]">${m.text}</span></div>`;
+    return `<div><b class="${col}">${esc(m.sender)}:</b> <span class="text-[#f0e6d2]">${esc(m.text)}</span></div>`;
   }).join('');
   const lLog = document.getElementById('lobbyChatLog');
   if (lLog) { lLog.innerHTML = renderHtml; lLog.scrollTop = lLog.scrollHeight; }
@@ -8637,9 +8714,9 @@ function updateHudElements() {
     const kfContainer = document.getElementById('hudKillFeed');
     kfContainer.innerHTML = killFeedList.map(k => `
       <div class="px-3 py-1 bg-[#010a13]/95 border border-[#463714] text-[11px] font-mono font-bold shadow flex items-center gap-2">
-        <span class="${k.killerTeam === BLUE ? 'text-[#0ac8b9]' : 'text-[#e84057]'}">${k.killer}</span>
+        <span class="${k.killerTeam === BLUE ? 'text-[#0ac8b9]' : 'text-[#e84057]'}">${esc(k.killer)}</span>
         <span class="text-[#c8aa6e] text-[9px]">[KATLETTİ]</span>
-        <span class="${k.killerTeam === BLUE ? 'text-[#e84057]' : 'text-[#0ac8b9]'}">${k.victim}</span>
+        <span class="${k.killerTeam === BLUE ? 'text-[#e84057]' : 'text-[#0ac8b9]'}">${esc(k.victim)}</span>
       </div>
     `).join('');
   }
@@ -9110,7 +9187,7 @@ function toggleScoreboard(forceState) {
           <tr class="border-b border-[#3c3c41] text-xs font-mono">
             <td class="py-1.5 px-2 font-bold flex items-center gap-2 ${isMe ? 'text-[#c8aa6e]' : 'text-[#f0e6d2]'}">
               <img src="${sp.squareUrl}" onerror="handleImgError(this,'#c8aa6e','#091428','orb')" class="w-6 h-6 border border-[#785a28]">
-              <span>${c.summonerName} <span class="text-[10px] text-[#a09b8c]">(${sp.name} Sv.${c.level})</span></span>
+              <span>${esc(c.summonerName)} <span class="text-[10px] text-[#a09b8c]">(${sp.name} Sv.${c.level})</span></span>
               ${isMvp ? '<span class="px-1 py-0.2 bg-[#c89b3c] text-[#010a13] text-[8px] font-black">MVP</span>' : ''}
               ${canKickInGame ? `<button onclick="kickLobbyPlayer(${c.playerId})" class="ml-1 px-1.5 py-0.5 bg-[#1e2328] border border-[#881337] text-[#e84057] text-[9px] font-bold" title="Oyuncuyu Çıkar">✕ Çıkar</button>` : ''}
             </td>
@@ -9204,11 +9281,11 @@ function renderLobbyBrowserStage() {
   onlineEl.innerHTML = onlineList.map((p) => {
     const isMe = (p.id === myPlayerId);
     const pStatus = p.status || p.phase || 'browser';
-    const stText = pStatus === 'in_game' ? '⚔️ OYUNDA' : pStatus === 'champ_select' ? '⏳ SEÇİMDE' : p.roomId ? `🟢 ${p.roomName || ('ODA #' + p.roomId)}` : '🌐 LOBİLERDE';
+    const stText = pStatus === 'in_game' ? '⚔️ OYUNDA' : pStatus === 'champ_select' ? '⏳ SEÇİMDE' : p.roomId ? `🟢 ${esc(p.roomName || ('ODA #' + p.roomId))}` : '🌐 LOBİLERDE';
     const stCol = pStatus === 'in_game' ? 'text-[#fde047] border-[#c8aa6e]' : 'text-[#4ade80] border-[#10b981]';
     return `
       <div class="flex items-center justify-between bg-[#060e1a] border border-[#3c3c41] px-2.5 py-1.5 text-xs">
-        <span class="font-bold truncate ${isMe ? 'text-[#c8aa6e]' : 'text-[#f0e6d2]'}">${p.name}${isMe ? ' (Sen)' : ''}</span>
+        <span class="font-bold truncate ${isMe ? 'text-[#c8aa6e]' : 'text-[#f0e6d2]'}">${esc(p.name)}${isMe ? ' (Sen)' : ''}</span>
         <span class="text-[9px] font-mono px-1.5 py-0.5 bg-[#091428] border ${stCol} font-bold shrink-0">${stText}</span>
       </div>
     `;
@@ -9249,7 +9326,7 @@ function renderLobbyBrowserStage() {
               <div class="flex items-center gap-1.5 min-w-0">
                 <img src="${sp.squareUrl}" onerror="handleImgError(this,'${sp.color}','${sp.accent}','orb')" class="w-5 h-5 border border-[#785a28] shrink-0">
                 <span class="font-bold truncate ${teamCol}">${sp.name} <span class="text-[#c8aa6e] font-mono">Sv.${sl.level || 3}</span></span>
-                <span class="text-[9px] text-[#a09b8c] font-mono">(${isBot ? 'BOT' : (sl.summonerName || 'Oyuncu')})</span>
+                <span class="text-[9px] text-[#a09b8c] font-mono">(${isBot ? 'BOT' : esc(sl.summonerName || 'Oyuncu')})</span>
               </div>
               ${isBot ? `<button onclick="requestRejoinActiveMatch(false, ${sIdx}, '${rid}')" class="hex-btn-primary px-2 py-0.5 text-[9px] font-cinzel font-black uppercase shrink-0">YERİNE GEÇ</button>` : `<span class="text-[9px] font-mono text-[#4ade80] font-bold shrink-0">OYUNDA</span>`}
             </div>
@@ -9262,10 +9339,10 @@ function renderLobbyBrowserStage() {
               <div>
                 <div class="flex items-center gap-2">
                   <span class="px-2 py-0.5 bg-[#e84057]/20 border border-[#e84057] text-[#e84057] text-[10px] font-mono font-black">● CANLI MAÇ (#${rid})</span>
-                  <span class="font-cinzel font-black text-sm text-[#f0e6d2]">${rm.name}</span>
+                  <span class="font-cinzel font-black text-sm text-[#f0e6d2]">${esc(rm.name)}</span>
                 </div>
                 <div class="text-[11px] text-[#a09b8c] font-mono mt-0.5">
-                  Kurucu: <b class="text-[#c8aa6e]">${rm.hostName}</b> • Süre: <b class="text-[#f0e6d2]">${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}</b> • Skor: <b class="text-[#0ac8b9]">${mInfo.blueKills || 0}</b> - <b class="text-[#e84057]">${mInfo.redKills || 0}</b>
+                  Kurucu: <b class="text-[#c8aa6e]">${esc(rm.hostName)}</b> • Süre: <b class="text-[#f0e6d2]">${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}</b> • Skor: <b class="text-[#0ac8b9]">${mInfo.blueKills || 0}</b> - <b class="text-[#e84057]">${mInfo.redKills || 0}</b>
                 </div>
               </div>
               <div class="flex items-center gap-1.5">
@@ -9285,10 +9362,10 @@ function renderLobbyBrowserStage() {
               <span class="px-2 py-0.5 ${isCS ? 'bg-[#f59e0b]/20 border-[#f59e0b] text-[#fbbf24]' : 'bg-[#10b981]/20 border-[#10b981] text-[#4ade80]'} border text-[10px] font-mono font-black">
                 ${isCS ? '⏳ ŞAMPİYON SEÇİMİ' : '● AÇIK LOBİ'} (#${rid})
               </span>
-              <span class="font-cinzel font-black text-sm text-[#f0e6d2]">${rm.name}</span>
+              <span class="font-cinzel font-black text-sm text-[#f0e6d2]">${esc(rm.name)}</span>
             </div>
             <div class="text-xs text-[#a09b8c] font-mono mt-0.5">
-              Kurucu: <b class="text-[#c8aa6e]">${rm.hostName}</b> • Oyuncular: <b class="text-[#0ac8b9]">${rm.humanCount} İnsan + ${rm.botCount} Bot</b> (${totalSlots}/10) • Mod: ${rm.freePickMode ? 'Serbest' : 'Rastgele'}
+              Kurucu: <b class="text-[#c8aa6e]">${esc(rm.hostName)}</b> • Oyuncular: <b class="text-[#0ac8b9]">${rm.humanCount} İnsan + ${rm.botCount} Bot</b> (${totalSlots}/10) • Mod: ${rm.freePickMode ? 'Serbest' : 'Rastgele'}
             </div>
           </div>
           <button onclick="joinCustomLobbyRoom('${rid}')" class="hex-btn-primary px-4 py-2 font-cinzel text-xs font-black uppercase tracking-wider">
@@ -9423,7 +9500,7 @@ function renderLobby() {
         : '';
       rows.push(`
         <div class="flex items-center justify-between bg-[#060e1a] border ${isMe ? 'border-[#c8aa6e]' : 'border-[#0ac8b9]/60'} px-2.5 py-1.5 text-xs gap-1.5">
-          <span class="font-bold text-xs truncate ${isMe ? 'text-[#c8aa6e]' : 'text-[#f0e6d2]'}">${human.name}${isMe ? ' (Sen)' : ''}</span>
+          <span class="font-bold text-xs truncate ${isMe ? 'text-[#c8aa6e]' : 'text-[#f0e6d2]'}">${esc(human.name)}${isMe ? ' (Sen)' : ''}</span>
           <div class="flex items-center gap-1 shrink-0">${statusBadge}${kickBtnHtml}</div>
         </div>
       `);
@@ -9539,7 +9616,7 @@ function renderLobby() {
             <div class="flex items-center gap-2 min-w-0">
               <img src="${sp.squareUrl}" onerror="handleImgError(this,'${sp.color}','${sp.accent}','orb')" alt="${sp.name}" class="w-7 h-7 border border-[#c8aa6e] shrink-0">
               <div class="min-w-0">
-                <div class="font-bold text-[11px] truncate ${isMe ? 'text-[#c8aa6e]' : 'text-[#f0e6d2]'}">${human.name}${isMe ? ' (SEN)' : ''}</div>
+                <div class="font-bold text-[11px] truncate ${isMe ? 'text-[#c8aa6e]' : 'text-[#f0e6d2]'}">${esc(human.name)}${isMe ? ' (SEN)' : ''}</div>
                 <div class="text-[9px] text-[#0ac8b9] truncate">${sp.name} • ${sp.role}</div>
               </div>
             </div>
@@ -9557,7 +9634,7 @@ function renderLobby() {
             <div class="flex items-center gap-2 min-w-0">
               <div class="w-7 h-7 bg-[#091428] border border-[#e84057] flex items-center justify-center font-mono font-black text-xs text-[#e84057] shrink-0">?</div>
               <div class="min-w-0">
-                <div class="font-bold text-[11px] truncate text-[#f0e6d2]">${human.name}</div>
+                <div class="font-bold text-[11px] truncate text-[#f0e6d2]">${esc(human.name)}</div>
                 <div class="text-[9px] text-[#a09b8c] truncate">Gizli Rakip Seçimi</div>
               </div>
             </div>
