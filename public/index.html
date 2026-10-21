@@ -2,9 +2,15 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="ARAM Mayhem">
+<meta name="theme-color" content="#010a13">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="/icon-192.png">
 <title>League of Legends — ARAM: Mayhem</title>
 <link rel="stylesheet" href="/tailwind.css" onerror="var t=document.createElement('script');t.src='https://cdn.tailwindcss.com/3.4.17';document.head.appendChild(t);">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -791,6 +797,16 @@
 
 <!-- ═══════════════════════════════════════════════════════════════════════ -->
 <!-- 0. MINIMAL STARTUP DEVICE SELECTION POPUP (PC vs MOBILE) -->
+<div id="installHintOverlay" class="hidden fixed inset-0 flex items-center justify-center p-4 overflow-y-auto" style="background: rgba(1,10,19,0.97); z-index: 70;">
+  <div class="hex-panel max-w-md w-full p-5 space-y-3 border-2 border-[#c8aa6e]">
+    <div class="text-3xl text-center">📲</div>
+    <h2 id="installHintTitle" class="font-cinzel text-base font-black text-[#f0e6d2] tracking-wider uppercase text-center"></h2>
+    <p id="installHintBody" class="text-xs text-[#a09b8c] leading-relaxed"></p>
+    <ol id="installHintSteps" class="text-xs text-[#f0e6d2] leading-relaxed list-decimal pl-5 space-y-1"></ol>
+    <button id="installHintOk" onclick="closeInstallHint()" class="w-full hex-btn-primary py-2 px-4 font-cinzel font-black text-xs uppercase tracking-wider">OK</button>
+  </div>
+</div>
+
 <div id="portraitRotateOverlay" class="hidden fixed inset-0 z-50 flex flex-col items-center justify-center p-6 text-center" style="background: rgba(1,10,19,0.97); z-index: 110;">
   <div class="hex-panel max-w-sm w-full p-6 text-center space-y-4 border-2 border-[#0ac8b9]">
     <div class="text-4xl">📱↻</div>
@@ -2485,6 +2501,7 @@ function enterMobileLandscapeFullscreen() {
   portraitDismissed = true;
   const ov = document.getElementById('portraitRotateOverlay');
   if (ov) ov.classList.add('hidden');
+  if (!fullscreenApiAvailable() && !IS_STANDALONE) showInstallHint();
   try {
     const docEl = document.documentElement;
     const reqFs = docEl.requestFullscreen || docEl.webkitRequestFullscreen || docEl.msRequestFullscreen;
@@ -7395,15 +7412,66 @@ function toggleMobileMode(forceVal) {
   applyMobileModeUI();
 }
 
+// ── Fullscreen / install-to-home-screen helpers ─────────────────────────────
+// iPhone Safari has no Fullscreen API for web pages (only iPad does), so the fullscreen button used to do nothing.
+// There the only real fullscreen is installing the page to the home screen (it then opens without browser bars).
+const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const IS_STANDALONE = (window.navigator.standalone === true) ||
+  (window.matchMedia && (window.matchMedia('(display-mode: standalone)').matches || window.matchMedia('(display-mode: fullscreen)').matches));
+function fullscreenApiAvailable() {
+  const d = document.documentElement;
+  return Boolean(d.requestFullscreen || d.webkitRequestFullscreen || d.msRequestFullscreen);
+}
+function showInstallHint() {
+  const en = (typeof currentLang !== 'undefined' && currentLang === 'en');
+  const t = document.getElementById('installHintTitle');
+  const bd = document.getElementById('installHintBody');
+  const st = document.getElementById('installHintSteps');
+  if (!t || !bd || !st) return;
+  const steps = IS_IOS
+    ? (en ? ['Tap the Share button (square with an arrow) in Safari.', 'Choose “Add to Home Screen”, then tap Add.', 'Open the game from the new home-screen icon: it starts fullscreen, without the address bar.']
+          : ['Safari’de Paylaş düğmesine (oklu kare) dokun.', '“Ana Ekrana Ekle”yi seç ve Ekle’ye dokun.', 'Oyunu ana ekrandaki yeni simgeden aç: adres çubuğu olmadan tam ekran başlar.'])
+    : (en ? ['Open the browser menu (⋮).', 'Choose “Add to Home screen” or “Install app”.', 'Open the game from the new icon: it starts fullscreen.']
+          : ['Tarayıcı menüsünü (⋮) aç.', '“Ana ekrana ekle” veya “Uygulamayı yükle”yi seç.', 'Oyunu yeni simgeden aç: tam ekran başlar.']);
+  t.textContent = en ? 'Fullscreen on this phone' : 'Bu telefonda tam ekran';
+  const okBtn = document.getElementById('installHintOk');
+  if (okBtn) okBtn.textContent = en ? 'Got it' : 'Tamam';
+  bd.textContent = en
+    ? 'This browser does not let web pages go fullscreen. Installing the game to your home screen gives you a real fullscreen app:'
+    : 'Bu tarayıcı web sayfalarının tam ekran olmasına izin vermiyor. Oyunu ana ekrana ekleyerek gerçek tam ekran uygulama gibi açabilirsin:';
+  st.innerHTML = steps.map(x => '<li>' + esc(x) + '</li>').join('');
+  document.getElementById('installHintOverlay').classList.remove('hidden');
+}
+function closeInstallHint() {
+  const el = document.getElementById('installHintOverlay');
+  if (el) el.classList.add('hidden');
+}
+// Already running as an installed app (or fullscreen): the fullscreen buttons have nothing left to do.
+if (IS_STANDALONE) {
+  document.addEventListener('DOMContentLoaded', () => {
+    for (const id of ['lobbyFullscreenBtn', 'hudFullscreenBtn']) {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    }
+  });
+}
+
 function toggleFullscreenMode() {
+  if (!fullscreenApiAvailable()) {
+    if (!IS_STANDALONE) showInstallHint();
+    return;
+  }
   try {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(() => {});
-      if (screen.orientation && screen.orientation.lock) {
-        screen.orientation.lock('landscape').catch(() => {});
-      }
+    const d = document.documentElement;
+    const isFs = document.fullscreenElement || document.webkitFullscreenElement;
+    if (!isFs) {
+      const req = d.requestFullscreen || d.webkitRequestFullscreen || d.msRequestFullscreen;
+      Promise.resolve(req.call(d)).then(() => {
+        if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {});
+      }).catch(() => {});
     } else {
-      document.exitFullscreen().catch(() => {});
+      const ex = document.exitFullscreen || document.webkitExitFullscreen;
+      if (ex) Promise.resolve(ex.call(document)).catch(() => {});
     }
   } catch (e) {}
 }
@@ -9096,7 +9164,7 @@ function renderShopModal() {
       <div>
         ${isRecommended ? `<div class="mb-1.5 flex items-center justify-between text-[9px] font-mono font-black px-1.5 py-0.5 ${isNextCore ? 'bg-[#fde047] text-[#010a13]' : 'bg-[#0ac8b9]/20 text-[#0ac8b9] border border-[#0ac8b9]/50'}"><span>★ ${sp.name.toUpperCase()} ÖNERİLEN #${buildOrder + 1}</span><span>${isAlreadyOwned ? '✔ ALINDI' : isNextCore ? 'SIRADAKİ EŞYA' : 'CORE BUILD'}</span></div>` : ''}
         <div class="flex items-center gap-2.5 mb-1.5">
-          <img src="${item.imgUrl}" onerror="handleImgError(this,'#c8aa6e','#091428', item.consumable || item.cat === 'mage' ? 'orb' : 'sword')" alt="${item.name}" class="w-10 h-10 border border-[#c8aa6e]">
+          <img src="${item.imgUrl}" onerror="handleImgError(this,'#c8aa6e','#091428','${item.consumable || item.cat === 'mage' ? 'orb' : 'sword'}')" alt="${item.name}" class="w-10 h-10 border border-[#c8aa6e]">
           <div class="flex-1 min-w-0">
             <div class="font-bold text-xs text-[#f0e6d2] truncate">${item.name}</div>
             <div class="text-xs font-mono font-black text-[#c8aa6e]">${item.cost} ALTIN ${item.consumable ? '• ANINDA' : ''}</div>

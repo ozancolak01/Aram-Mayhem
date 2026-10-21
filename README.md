@@ -40,7 +40,14 @@ fullscreen + landscape on first touch).
   `http://192.168…` LAN addresses browsers do not allow wake locks, so turn off auto-lock for the session or use the tunnel link.
 * **Dead connections are detected** (Wi-Fi to mobile data, locked screen): the match freezes, the phone reconnects by
   itself, and when you unlock the phone it reconnects immediately.
-* Add the page to the home screen (Share / menu → *Add to Home Screen*) for a browser-bar-free fullscreen view.
+* **Fullscreen on iPhone:** Safari on iPhone does not allow web pages to go fullscreen at all (only iPad does), so the
+  ⛶ button now explains the workaround: *Share → Add to Home Screen*, then start the game from the new icon. It opens
+  without the address bar. Android phones use the normal fullscreen button (or *Install app* in the browser menu).
+  The home-screen icon remembers the exact address you added it from, so it only keeps working with a **stable**
+  address: your PC's LAN address (give the PC a fixed IP in your router), a named Cloudflare tunnel, or a server.
+  A `trycloudflare.com` quick-tunnel link changes every time, so add it to the home screen only for one session.
+* The page does not draw under the notch or home indicator, so on notched iPhones there are thin dark bars at the
+  sides in landscape; all controls stay reachable.
 
 ## How to play
 
