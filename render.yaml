@@ -2,7 +2,10 @@ services:
   - type: web
     name: aram-mayhem
     runtime: node
-    plan: free            # note: free instances sleep when idle, which drops all rooms; use a paid plan for always-on
-    buildCommand: npm install && npm run build:css
+    region: frankfurt        # closest Render region to Turkey / Europe; change if your friends are elsewhere
+    plan: free               # free instances sleep after ~15 idle minutes and forget all rooms; a paid plan stays awake
+    # --include=dev: Render installs with NODE_ENV=production, which would skip Tailwind (a dev dependency).
+    # The CSS build is optional: if it fails the page falls back to the Tailwind CDN instead of failing the deploy.
+    buildCommand: npm install --include=dev && (npm run build:css || echo "CSS build skipped")
     startCommand: node server.js
     healthCheckPath: /healthz

@@ -137,7 +137,12 @@ fly scale count 1      # fly may create 2 machines by default; one is what you w
 ```
 The provided `fly.toml` keeps the machine running (`auto_stop_machines = 'off'`) so rooms are not lost to sleep.
 
-**Render**: use `render.yaml`. The free plan sleeps when idle and drops all rooms; use a paid plan for always-on.
+**Render**: push the project to GitHub, then in Render choose *New → Blueprint* (it reads `render.yaml`) or *New → Web
+Service* with build command `npm install --include=dev && (npm run build:css || true)` and start command `node server.js`.
+You get a stable `https://….onrender.com` address, which also makes *Add to Home Screen* on iPhone and the screen
+wake lock work. The free plan sleeps after ~15 idle minutes (the first visit then takes about a minute to wake it) and
+forgets all rooms when it sleeps; the game pings `/healthz` every 4 minutes while someone is connected so a running
+match is not put to sleep. A paid plan stays awake.
 **Railway / Heroku / any Node host:** `npm install && npm run build:css`, then `npm start`.
 
 ## Troubleshooting

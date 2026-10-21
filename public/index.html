@@ -8165,6 +8165,12 @@ function applyPlayerAction(cIdx, act) {
 
 let lastWorldSyncSeq = 0;
 
+// Hosts that sleep idle web services (e.g. Render's free tier) judge "idle" by plain HTTP requests, which a long
+// WebSocket game does not make. One tiny request every 4 minutes while we are connected keeps the server awake.
+setInterval(() => {
+  if (lanConnected) fetch('/healthz', { cache: 'no-store' }).catch(() => {});
+}, 4 * 60 * 1000);
+
 // Every 5 s tell the server how fresh our view of the match is (feeds the server's /stats page and lag warnings).
 setInterval(() => {
   if (!lanConnected || !inGame || !G || netReconnecting) return;
