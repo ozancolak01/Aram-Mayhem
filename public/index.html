@@ -1955,7 +1955,7 @@ const CHAMP_SPECS = {
     pName: 'Muazzam Kötülük Gücü', pDesc: 'Şampiyonlara isabet eden her yetenek ve her alt etme kalıcı olarak +3 AP kazandırır.',
     qName: 'Uğursuz Saldırı', qDesc: '2 hedefi delen karanlık enerji gönderir ve kalıcı AP yükü kazandırır.', qCd: 5.5, qCost: 40, qIcon: 'Q',
     wName: 'Karanlık Madde', wDesc: 'Gökten karanlık madde düşürerek 250 (+95% AP) alan hasarı verir.', wCd: 7.5, wCost: 55, wIcon: 'W',
-    eName: 'Ufuk Çizgisi', eDesc: 'Hedef alanda rakipleri 1.4 sn sersemleten karanlık kafes oluşturur.', eCd: 13.5, eCost: 70, eIcon: 'E',
+    eName: 'Ufuk Çizgisi', eDesc: '0.6 sn gecikmeyle rakipleri 1.15 sn sersemleten karanlık kafes oluşturur.', eCd: 15.5, eCost: 70, eIcon: 'E',
     rName: 'Ezeli Patlama', rDesc: 'Eksik cana göre artan devasa ezici büyü hasarı patlatır.', rCd: 36.0, rCost: 100, rIcon: 'R',
     recBuild: ['guard_orb', 'boots_sorc', 'ludens', 'rabadon', 'shadowflame', 'zhonya'],
     recAugs: ['phenomenal_evil', 'quest_wooglets', 'eureka', 'witchful_thinking', 'jeweled_gauntlet', 'triple_q', 'ultimate_bot']
@@ -2074,7 +2074,7 @@ const CHAMP_SPECS = {
     hp: 1290, mana: 520, speed: 184, range: 75, baseAD: 68, baseAP: 38, atkSpeed: 0.96, armor: 38,
     pName: 'Petrisit Patlaması', pDesc: 'Her yetenek kullanımı Petrisit yükü verir (en fazla 3). Normal saldırılar yük harcayarak zincirleri çevrede savurur ve alan büyü hasarı vurur.',
     qName: 'Zincir Kırbaç', qDesc: 'Zincirlerini çapraz savurarak yavaşlatır ve 0.4 sn sonra kesişim noktasını ikinci kez patlatır.', qCd: 6.5, qCost: 45, qIcon: 'Q',
-    wName: 'Kralkatili', wDesc: 'Hedefe atılarak büyü darbesi indirir ve Sylas’ı yüksek miktarda İYİLEŞTİRİR (Canı %40 altındayken 2 kat iyileştirir!).', wCd: 7.5, wCost: 50, wIcon: 'W',
+    wName: 'Kralkatili', wDesc: 'Hedefe atılarak büyü darbesi indirir ve Sylas’ı iyileştirir (Düşük canda +%45 ek iyileştirme).', wCd: 8.5, wCost: 55, wIcon: 'W',
     eName: 'Firar / Kaçır', eDesc: 'İleri atılıp zincirlerini fırlatır; isabet ettiği rakibi sersemletir ve Sylas’ı ona çeker.', eCd: 10.0, eCost: 55, eIcon: 'E',
     rName: 'Gasp (Hijack)', rDesc: 'En yakındaki rakip şampiyonun ULTİSİNİ (R) GASP EDEREK kendiYG/SG değerleriyle ateşler ve Petrisit kalkanı kazanır!', rCd: 32.0, rCost: 80, rIcon: 'R',
     recBuild: ['guard_orb', 'boots_sorc', 'ludens', 'shadowflame', 'zhonya', 'rabadon'],
@@ -2119,7 +2119,7 @@ const CHAMP_SPECS = {
     hp: 1640, mana: 100, speed: 178, range: 72, baseAD: 76, baseAP: 0, atkSpeed: 0.90, armor: 54,
     pName: 'Arena Azmi (Sol-Sağ Kroşe)', pDesc: 'Her 2. yumruğu +%35 AD ek hasar vurur. Aldığı hasar "Grit" olarak birikir ve W ile devasa Kalkan + Gerçek Hasara dönüşür!',
     qName: 'Kroşe', qDesc: '+%32 Hareket Hızı kazanır ve sonraki 2 yumruğu hedefin Azami Canına göre ek hasar vurur.', qCd: 6.0, qCost: 0, qIcon: 'Q',
-    wName: 'Balyoz Yumruk', wDesc: 'Biriken tüm Grit kadar KALKAN kazanır ve önündeki alana devasa GERÇEK HASAR yumruğu patlatır!', wCd: 11.5, wCost: 0, wIcon: 'W',
+    wName: 'Balyoz Yumruk', wDesc: 'Biriken Grit kadar Kalkan kazanır ve önündeki alana ağır darbe indirir.', wCd: 13.5, wCost: 0, wIcon: 'W',
     eName: 'Yüz Kıran', eDesc: 'Çevresindeki rakipleri birbirine çarptırarak kendine çeker ve 1.0 sn sersemletir.', eCd: 10.5, eCost: 0, eIcon: 'E',
     rName: 'Gösteri Zamanı', rDesc: 'Rakibi kavrayıp ileri doğru yere çalarak Azami Cana dayalı yıkıcı alan hasarı ve %75 yavaşlatma vurur!', rCd: 34.0, rCost: 0, rIcon: 'R',
     recBuild: ['guard_horn', 'boots_zerk', 'heartsteel', 'sundered_sky', 'warmogs', 'trinity'],
@@ -3376,14 +3376,43 @@ function spawnProj(opts) {
   });
 }
 
+function markDisplaced(t) {
+  if (t && t.level !== undefined) {
+    t.lifeEpoch = (t.lifeEpoch || 1) + 1;
+    t.displacedTimer = 0.55;
+    t.netX = undefined;
+    t.netY = undefined;
+  }
+}
+function encodeTargetRef(t) {
+  if (!t || t.dead) return null;
+  if (t.level !== undefined) return { kind: 'champ', id: t.idx };
+  if (t.id) return { kind: 'minion', id: t.id };
+  return null;
+}
+function resolveTargetRef(ref) {
+  if (!ref || !G) return null;
+  if (ref.level !== undefined || ref.id !== undefined && ref.x !== undefined) return ref.dead ? null : ref;
+  if (ref.kind === 'champ') {
+    const ch = G.champions[ref.id];
+    return (ch && !ch.dead) ? ch : null;
+  }
+  if (ref.kind === 'minion') {
+    const mn = G.minions.find(m => m.id === ref.id);
+    return (mn && !mn.dead) ? mn : null;
+  }
+  return null;
+}
 function spawnAoE(opts) {
+  const dly = opts.delay || 0;
+  const dur = (opts.dur || 0.45) + dly;
   G.aoes.push({
     x: opts.x, y: opts.y, radius: opts.radius,
     dmg: opts.dmg || 0, isSpell: true, isTrue: !!opts.isTrue,
     team: opts.team, ownerIdx: opts.ownerIdx,
     color: opts.color || 'rgba(56,189,248,0.45)',
-    timer: opts.dur || 0.45, maxTimer: opts.dur || 0.45,
-    delay: opts.delay || 0, hit: false, tick: !!opts.tick, tickTimer: 0.4,
+    timer: dur, maxTimer: dur,
+    delay: dly, maxDelay: dly, hit: false, tick: !!opts.tick, tickTimer: 0.4,
     onHit: opts.onHit || null, label: opts.label || ''
   });
 }
@@ -3531,9 +3560,9 @@ function dealDamage(target, rawDmg, ownerIdx, opts = {}) {
       }
     }
 
-    // Veigar Passive AP stack on direct spell hit
+    // Veigar Passive AP stack on direct spell hit (balanced: +2 AP)
     if (isDirectSpellHit && !opts.noApStack && owner.specId === 'veiga' && target.level && target.team !== owner.team) {
-      owner.bonusAP += 3;
+      owner.bonusAP += 2;
       recalcStats(owner);
     }
 
@@ -3636,7 +3665,7 @@ function dealDamage(target, rawDmg, ownerIdx, opts = {}) {
   if (target.level && owner && owner.team !== target.team) {
     target.jhinMarkTimer = 4.0;
     if (target.specId === 'sett') {
-      target.settGrit = Math.min(target.maxHp * 0.50, (target.settGrit || 0) + dmg * 0.85);
+      target.settGrit = Math.min(target.maxHp * 0.40, (target.settGrit || 0) + dmg * 0.60);
       target.settGritTimer = 4.0;
     }
   }
@@ -3769,11 +3798,11 @@ function handleChampKilled(victim, killer) {
         awardXpAndGold(ch, 110, 115);
       }
       if (ch.specId === 'kata') {
-        ch.qTimer = Math.max(0, ch.qTimer - 15);
-        ch.wTimer = Math.max(0, ch.wTimer - 15);
-        ch.eTimer = Math.max(0, ch.eTimer - 15);
-        ch.rTimer = Math.max(0, ch.rTimer - 15);
-        addFloatText(ch.x, ch.y - 28, 'AÇGÖZLÜ SIFIRLAMASI (-15sn)!', '#e11d48', 15);
+        ch.qTimer = Math.max(0, ch.qTimer - 10);
+        ch.wTimer = Math.max(0, ch.wTimer - 10);
+        ch.eTimer = Math.max(0, ch.eTimer - 10);
+        ch.rTimer = Math.max(0, ch.rTimer - 10);
+        addFloatText(ch.x, ch.y - 28, 'AÇGÖZLÜ SIFIRLAMASI (-10sn)!', '#e11d48', 15);
       }
       if (ch.specId === 'thresh') {
         ch.baseArmor += 3; ch.bonusAP += 4;
@@ -4099,11 +4128,12 @@ function castAbility(idx, key, mx, my) {
         }
       } else if (c.specId === 'blitz') {
         // Blitzcrank Q: Rocket Grab — 365 range hook with chain tether
-        spawnProj({ x: c.x, y: c.y, ang: a, speed: 1220, maxRange: 365, maxHits: 1, dmg: 165 + c.ap * 0.9, isSpell: true, team: c.team, ownerIdx: idx, color: '#fbbf24', r: 13, drawHookChain: true, shape: 'hook', onHit: t => {
+        spawnProj({ x: c.x, y: c.y, ang: a, speed: 1220, maxRange: 365, maxHits: 1, dmg: 165 + c.ap * 0.85, isSpell: true, team: c.team, ownerIdx: idx, color: '#fbbf24', r: 13, drawHookChain: true, shape: 'hook', onHit: t => {
           if (!t.ccImmuneTimer || t.ccImmuneTimer <= 0) {
             t.x = clamp(c.x + Math.cos(a) * 44, 75, WORLD_W - 75);
             t.y = clamp(c.y + Math.sin(a) * 44, BRIDGE_TOP + 24, BRIDGE_BOT - 24);
             t.targetX = t.x; t.targetY = t.y; t.stunTimer = 0.75;
+            markDisplaced(t);
             addFloatText(t.x, t.y - 26, 'ÇEKİLDİ!', '#fbbf24', 14);
           }
         }});
@@ -4156,6 +4186,7 @@ function castAbility(idx, key, mx, my) {
               t.y = clamp(t.y - Math.sin(a) * pullDist, BRIDGE_TOP + 24, BRIDGE_BOT - 24);
             }
             t.targetX = t.x; t.targetY = t.y; t.slowTimer = 1.5; t.slowFactor = 0.5;
+            markDisplaced(t);
           }
         }});
       } else if (c.specId === 'veiga') {
@@ -4183,19 +4214,21 @@ function castAbility(idx, key, mx, my) {
         }});
       } else if (c.specId === 'thresh') {
         // Thresh Q: Death Sentence (Q1 Hook + Q2 Death Leap Recast!)
-        if (oa === 0 && c.threshQTarget && (c.threshQTimer || 0) > 0 && !c.threshQTarget.dead) {
-          const tgt = c.threshQTarget;
+        const thTgt = resolveTargetRef(c.threshQTarget);
+        if (oa === 0 && thTgt && (c.threshQTimer || 0) > 0) {
           c.threshQTarget = null; c.threshQTimer = 0;
-          c.x = clamp(tgt.x, 80, WORLD_W - 80);
-          c.y = clamp(tgt.y, BRIDGE_TOP + 24, BRIDGE_BOT - 24);
+          c.x = clamp(thTgt.x, 80, WORLD_W - 80);
+          c.y = clamp(thTgt.y, BRIDGE_TOP + 24, BRIDGE_BOT - 24);
           c.targetX = c.x; c.targetY = c.y;
+          c.teleportGrace = 0.8; c.lifeEpoch = (c.lifeEpoch || 1) + 1;
           addFloatText(c.x, c.y - 26, 'ÖLÜM SIÇRAYIŞI!', '#10b981', 13);
         } else {
           spawnProj({ x: c.x, y: c.y, ang: a, speed: 1150, maxRange: 385, maxHits: 1, dmg: 160 + c.ap * 0.85, isSpell: true, team: c.team, ownerIdx: idx, color: '#10b981', r: 12, drawHookChain: true, shape: 'hook', onHit: t => {
             if (!t.ccImmuneTimer || t.ccImmuneTimer <= 0) {
               t.x = (t.x + c.x) * 0.5; t.y = (t.y + c.y) * 0.5;
-              t.targetX = t.x; t.targetY = t.y; t.stunTimer = 1.35;
-              c.threshQTarget = t; c.threshQTimer = 2.5;
+              t.targetX = t.x; t.targetY = t.y; t.stunTimer = 1.25;
+              markDisplaced(t);
+              c.threshQTarget = encodeTargetRef(t); c.threshQTimer = 2.5;
               c.qTimer = 0.25;
               addFloatText(t.x, t.y - 26, 'YAKALANDI (ATILMAK İÇİN Q)!', '#10b981', 13);
             }
@@ -4279,19 +4312,20 @@ function castAbility(idx, key, mx, my) {
         }, 380);
       } else if (c.specId === 'leesin') {
         // Lee Sin Q: Sonic Wave (Q1) / Resonating Strike (Q2 flying kick!)
-        if (oa === 0 && c.leeQTarget && (c.leeQTimer || 0) > 0 && !c.leeQTarget.dead) {
-          const tgt = c.leeQTarget;
+        const leeTgt = resolveTargetRef(c.leeQTarget);
+        if (oa === 0 && leeTgt && (c.leeQTimer || 0) > 0) {
           c.leeQTarget = null; c.leeQTimer = 0;
-          c.x = clamp(tgt.x - Math.cos(baseAng) * 32, 80, WORLD_W - 80);
-          c.y = clamp(tgt.y - Math.sin(baseAng) * 32, BRIDGE_TOP + 24, BRIDGE_BOT - 24);
+          c.x = clamp(leeTgt.x - Math.cos(baseAng) * 32, 80, WORLD_W - 80);
+          c.y = clamp(leeTgt.y - Math.sin(baseAng) * 32, BRIDGE_TOP + 24, BRIDGE_BOT - 24);
           c.targetX = c.x; c.targetY = c.y;
-          const missBonus = (tgt.maxHp - tgt.hp) * 0.18;
-          dealDamage(tgt, 135 + c.ad * 1.05 + missBonus, idx, { isSpell: true });
-          addFloatText(tgt.x, tgt.y - 26, 'TİTREŞİM DARBESİ!', '#ef4444', 14);
+          c.teleportGrace = 0.8; c.lifeEpoch = (c.lifeEpoch || 1) + 1;
+          const missBonus = (leeTgt.maxHp - leeTgt.hp) * 0.18;
+          dealDamage(leeTgt, 135 + c.ad * 1.05 + missBonus, idx, { isSpell: true });
+          addFloatText(leeTgt.x, leeTgt.y - 26, 'TİTREŞİM DARBESİ!', '#ef4444', 14);
         } else {
           spawnProj({ x: c.x, y: c.y, ang: a, speed: 1180, maxRange: 375, maxHits: 1, dmg: 130 + c.ad * 0.95, isSpell: true, team: c.team, ownerIdx: idx, color: '#38bdf8', r: 10, shape: 'orb', onHit: t => {
             t.revealTimer = 3.5;
-            c.leeQTarget = t; c.leeQTimer = 3.0;
+            c.leeQTarget = encodeTargetRef(t); c.leeQTimer = 3.0;
             c.qTimer = 0.25; // Allow immediate Q2 recast!
             addFloatText(t.x, t.y - 24, 'SES İŞARETİ (ATILMAK İÇİN Q)!', '#38bdf8', 12);
           }});
@@ -4441,7 +4475,7 @@ function castAbility(idx, key, mx, my) {
       addFloatText(c.x, c.y - 24, 'GHOSTWATER DIVE!', '#2dd4bf', 12);
     } else if (c.specId === 'veiga') {
       const d = Math.min(360, dist(c.x, c.y, mx, my));
-      spawnAoE({ x: c.x + Math.cos(baseAng) * d, y: c.y + Math.sin(baseAng) * d, radius: 95, dmg: 240 + c.ap * 0.95, team: c.team, ownerIdx: idx, color: 'rgba(129,140,248,0.55)', dur: 0.70 });
+      spawnAoE({ x: c.x + Math.cos(baseAng) * d, y: c.y + Math.sin(baseAng) * d, radius: 92, dmg: 215 + c.ap * 0.80, delay: 0.75, team: c.team, ownerIdx: idx, color: 'rgba(129,140,248,0.55)', dur: 0.45 });
     } else if (c.specId === 'ashela') {
       // Ashe W: Volley — 7 frost arrows in a cone, 400 range, single-target per arrow
       for (let k = -3; k <= 3; k++) {
@@ -4504,16 +4538,16 @@ function castAbility(idx, key, mx, my) {
         }
       });
     } else if (c.specId === 'sylas') {
-      // Sylas W: Kingslayer — Lunges at target enemy, dealing high magic damage and healing Sylas (doubled below 40% HP!)
-      const d = Math.min(175, dist(c.x, c.y, mx, my));
+      // Sylas W: Kingslayer — Balanced heal & AoE
+      const d = Math.min(165, dist(c.x, c.y, mx, my));
       c.x = clamp(c.x + Math.cos(baseAng) * d, 80, WORLD_W - 80);
       c.y = clamp(c.y + Math.sin(baseAng) * d, BRIDGE_TOP + 24, BRIDGE_BOT - 24);
       c.targetX = c.x; c.targetY = c.y;
-      const lowMult = (c.hp / c.maxHp < 0.45) ? 1.85 : 1.0;
-      const healAmt = Math.round((130 + c.ap * 0.55) * lowMult);
+      const lowMult = (c.hp / c.maxHp < 0.40) ? 1.45 : 1.0;
+      const healAmt = Math.round((105 + c.ap * 0.42) * lowMult);
       c.hp = Math.min(c.maxHp, c.hp + healAmt);
       addFloatText(c.x, c.y - 26, `+${healAmt} KINGSLAYER!`, '#4ade80', 14);
-      spawnAoE({ x: c.x, y: c.y, radius: 88, dmg: 145 + c.ap * 0.85, team: c.team, ownerIdx: idx, color: 'rgba(56,189,248,0.55)', dur: 0.28 });
+      spawnAoE({ x: c.x, y: c.y, radius: 85, dmg: 125 + c.ap * 0.70, team: c.team, ownerIdx: idx, color: 'rgba(56,189,248,0.55)', dur: 0.28 });
     } else if (c.specId === 'leesin') {
       // Lee Sin W: Safeguard / Iron Will — Dashes toward cursor/ally, grants Shield & Lifesteal
       const d = Math.min(180, dist(c.x, c.y, mx, my));
@@ -4527,40 +4561,45 @@ function castAbility(idx, key, mx, my) {
       c.rangerTimer = 3.5;
       addFloatText(c.x, c.y - 24, 'SILVER BOLTS FOCUS!', '#e2e8f0', 12);
     } else if (c.specId === 'sett') {
-      // Sett W: Haymaker — Consumes Grit for a massive Shield + True Damage cone blast!
-      const gritVal = Math.max(240, Math.round(c.settGrit || 0));
+      // Sett W: Haymaker — Balanced Grit Shield & punch
+      const gritVal = Math.max(160, Math.round(c.settGrit || 0));
       c.settGrit = 0;
-      c.shield += gritVal; c.shieldTimer = 3.0;
-      const hayDmg = 185 + c.ad * 0.95 + gritVal * 0.55;
+      c.shield += gritVal; c.shieldTimer = 2.2;
+      const hayDmg = 145 + c.ad * 0.80 + gritVal * 0.42;
       spawnBeam({
-        x1: c.x, y1: c.y, x2: c.x + Math.cos(baseAng) * 255, y2: c.y + Math.sin(baseAng) * 255,
-        width: 68, dmg: hayDmg, team: c.team, ownerIdx: idx, color: '#fbbf24', dur: 0.38
+        x1: c.x, y1: c.y, x2: c.x + Math.cos(baseAng) * 245, y2: c.y + Math.sin(baseAng) * 245,
+        width: 62, dmg: hayDmg, team: c.team, ownerIdx: idx, color: '#fbbf24', dur: 0.38
       });
       addFloatText(c.x, c.y - 28, `HAYMAKER (+${gritVal} SHIELD)!`, '#fbbf24', 15);
     } else if (c.specId === 'leona') {
       // Leona W: Eclipse — +45 Armor, +260 Shield & Solar AoE burst
       c.leonaWTimer = 3.5;
-      c.shield += 260 + c.ap * 0.60; c.shieldTimer = 3.5;
+      c.shield += 240 + c.ap * 0.55; c.shieldTimer = 3.5;
       recalcStats(c);
-      spawnAoE({ x: c.x, y: c.y, radius: 135, dmg: 135 + c.ap * 0.65, team: c.team, ownerIdx: idx, color: 'rgba(250,204,21,0.48)', dur: 0.45, onHit: t => {
+      spawnAoE({ x: c.x, y: c.y, radius: 135, dmg: 125 + c.ap * 0.60, delay: 0.45, team: c.team, ownerIdx: idx, color: 'rgba(250,204,21,0.48)', dur: 0.45, onHit: t => {
         t.sunlightTimer = 3.5; t.sunlightOwner = idx;
       }});
       addFloatText(c.x, c.y - 24, 'ECLIPSE (+45 ARMOR)!', '#facc15', 13);
     } else if (c.specId === 'viktor') {
-      // Viktor W: Gravity Field — Slows & stuns enemies inside
+      // Viktor W: Gravity Field — 0.70s arming delay before stunning!
       const d = Math.min(340, dist(c.x, c.y, mx, my));
+      const gx = c.x + Math.cos(baseAng) * d, gy = c.y + Math.sin(baseAng) * d;
+      for (const en of G.champions) {
+        if (!en.dead && en.team !== c.team && dist(gx, gy, en.x, en.y) <= 100) {
+          en.slowTimer = 1.2; en.slowFactor = 0.35;
+        }
+      }
       spawnAoE({
-        x: c.x + Math.cos(baseAng) * d, y: c.y + Math.sin(baseAng) * d, radius: 105,
-        dmg: 85 + c.ap * 0.45, team: c.team, ownerIdx: idx, color: 'rgba(245,158,11,0.45)', dur: 1.8,
+        x: gx, y: gy, radius: 100, delay: 0.70,
+        dmg: 70 + c.ap * 0.35, team: c.team, ownerIdx: idx, color: 'rgba(245,158,11,0.45)', dur: 1.1,
         onHit: t => {
-          t.slowTimer = 1.8; t.slowFactor = 0.45;
-          if (!t.ccImmuneTimer || t.ccImmuneTimer <= 0) t.stunTimer = 1.15;
+          t.slowTimer = 1.5; t.slowFactor = 0.40;
+          if (!t.ccImmuneTimer || t.ccImmuneTimer <= 0) t.stunTimer = 1.05;
         }
       });
     }
     if (!skipWCooldown) {
-      const veigaCdr = c.specId === 'veiga' ? Math.max(0.55, 1 - Math.floor(c.bonusAP / 50) * 0.06) : 1.0;
-      c.wTimer = c.wCd * c.cdrMultiplier * veigaCdr;
+      c.wTimer = c.wCd * c.cdrMultiplier;
     }
   }
 
@@ -4576,7 +4615,7 @@ function castAbility(idx, key, mx, my) {
 
     if (c.specId === 'luxana') {
       const d = Math.min(370, dist(c.x, c.y, mx, my));
-      spawnAoE({ x: c.x + Math.cos(baseAng) * d, y: c.y + Math.sin(baseAng) * d, radius: 100, dmg: 155 + c.ap * 0.8, team: c.team, ownerIdx: idx, color: 'rgba(253,224,71,0.48)', dur: 0.50, onHit: t => {
+      spawnAoE({ x: c.x + Math.cos(baseAng) * d, y: c.y + Math.sin(baseAng) * d, radius: 100, delay: 0.35, dmg: 150 + c.ap * 0.75, team: c.team, ownerIdx: idx, color: 'rgba(253,224,71,0.48)', dur: 0.45, onHit: t => {
         t.slowTimer = 1.5; t.slowFactor = 0.40; t.illumTimer = 4.0;
       }});
     } else if (c.specId === 'yasu') {
@@ -4586,7 +4625,7 @@ function castAbility(idx, key, mx, my) {
       c.targetX = c.x; c.targetY = c.y;
       spawnAoE({ x: c.x, y: c.y, radius: 80, dmg: 105 + c.ad * 0.75, team: c.team, ownerIdx: idx, color: 'rgba(56,189,248,0.45)', dur: 0.22 });
     } else if (c.specId === 'jinxie') {
-      // Jinx E: Flame Chompers! — Spawns 3 distinct Chomper traps in a line perpendicular to aim
+      // Jinx E: Flame Chompers! — 0.45s arming time
       const d = Math.min(290, dist(c.x, c.y, mx, my));
       const cx = c.x + Math.cos(baseAng) * d, cy = c.y + Math.sin(baseAng) * d;
       const perp = baseAng + Math.PI / 2;
@@ -4594,8 +4633,8 @@ function castAbility(idx, key, mx, my) {
         spawnAoE({
           x: cx + Math.cos(perp) * k * 46,
           y: clamp(cy + Math.sin(perp) * k * 46, BRIDGE_TOP + 26, BRIDGE_BOT - 26),
-          radius: 42, dmg: 125 + c.ad * 0.7, team: c.team, ownerIdx: idx, color: 'rgba(244,114,182,0.52)', dur: 2.6,
-          onHit: t => { if (!t.ccImmuneTimer || t.ccImmuneTimer <= 0) t.rootTimer = 1.5; }
+          radius: 42, delay: 0.45, dmg: 125 + c.ad * 0.7, team: c.team, ownerIdx: idx, color: 'rgba(244,114,182,0.52)', dur: 2.2,
+          onHit: t => { if (!t.ccImmuneTimer || t.ccImmuneTimer <= 0) t.rootTimer = 1.35; }
         });
       }
     } else if (c.specId === 'blitz') {
@@ -4635,6 +4674,7 @@ function castAbility(idx, key, mx, my) {
           t.y = clamp(c.y + Math.sin(baseAng) * 44, BRIDGE_TOP + 24, BRIDGE_BOT - 24);
           t.targetX = t.x; t.targetY = t.y;
           t.slowTimer = 1.2; t.slowFactor = 0.40;
+          markDisplaced(t);
         }
       }});
     } else if (c.specId === 'ezre') {
@@ -4681,29 +4721,31 @@ function castAbility(idx, key, mx, my) {
       }});
     } else if (c.specId === 'veiga') {
       const d = Math.min(330, dist(c.x, c.y, mx, my));
-      spawnAoE({ x: c.x + Math.cos(baseAng) * d, y: c.y + Math.sin(baseAng) * d, radius: 115, dmg: 115 + c.ap * 0.5, team: c.team, ownerIdx: idx, color: 'rgba(192,132,252,0.5)', dur: 1.5, onHit: t => {
-        if (!t.ccImmuneTimer || t.ccImmuneTimer <= 0) t.stunTimer = 1.4;
+      spawnAoE({ x: c.x + Math.cos(baseAng) * d, y: c.y + Math.sin(baseAng) * d, radius: 110, delay: 0.60, dmg: 95 + c.ap * 0.40, team: c.team, ownerIdx: idx, color: 'rgba(192,132,252,0.5)', dur: 1.2, onHit: t => {
+        if (!t.ccImmuneTimer || t.ccImmuneTimer <= 0) t.stunTimer = 1.15;
       }});
     } else if (c.specId === 'ashela') {
       spawnProj({ x: c.x, y: c.y, ang: baseAng, speed: 1320, maxRange: 750, dmg: 75 + c.ad * 0.4, isSpell: true, team: c.team, ownerIdx: idx, color: '#38bdf8', r: 16, pierce: true, onHit: t => { t.revealTimer = 5.0; } });
     } else if (c.specId === 'kata') {
-      // Katarina E: Shunpo — 265 max blink range, resets attack timer & refunds 2.5s CD on champion hit
-      const d = Math.min(265, dist(c.x, c.y, mx, my));
+      // Katarina E: Shunpo — 255 max blink range
+      const d = Math.min(255, dist(c.x, c.y, mx, my));
       c.x = clamp(c.x + Math.cos(baseAng) * d, 80, WORLD_W - 80);
       c.y = clamp(c.y + Math.sin(baseAng) * d, BRIDGE_TOP + 24, BRIDGE_BOT - 24);
       c.targetX = c.x; c.targetY = c.y; c.atkTimer = 0;
       let hitChamp = false;
-      spawnAoE({ x: c.x, y: c.y, radius: 90, dmg: 135 + c.ap * 0.65 + c.ad * 0.55, team: c.team, ownerIdx: idx, color: 'rgba(225,29,72,0.52)', dur: 0.25, onHit: t => {
+      spawnAoE({ x: c.x, y: c.y, radius: 85, dmg: 115 + c.ap * 0.55 + c.ad * 0.45, team: c.team, ownerIdx: idx, color: 'rgba(225,29,72,0.52)', dur: 0.25, onHit: t => {
         if (t.level && !hitChamp) {
           hitChamp = true;
-          c.eTimer = Math.max(0, c.eTimer - 2.5);
+          c.eTimer = Math.max(0, c.eTimer - 2.0);
         }
       }});
     } else if (c.specId === 'thresh') {
       spawnAoE({ x: c.x + Math.cos(baseAng) * 60, y: c.y + Math.sin(baseAng) * 60, radius: 95, dmg: 140 + c.ap * 0.70, team: c.team, ownerIdx: idx, color: 'rgba(16,185,129,0.45)', dur: 0.30, onHit: t => {
         t.x = clamp(c.x + Math.cos(baseAng) * 35, 75, WORLD_W - 75);
         t.y = clamp(c.y + Math.sin(baseAng) * 35, BRIDGE_TOP + 24, BRIDGE_BOT - 24);
+        t.targetX = t.x; t.targetY = t.y;
         t.slowTimer = 1.5; t.slowFactor = 0.50;
+        markDisplaced(t);
       }});
     } else if (c.specId === 'mf') {
       const d = Math.min(360, dist(c.x, c.y, mx, my));
@@ -4726,11 +4768,11 @@ function castAbility(idx, key, mx, my) {
         addFloatText(c.x, c.y - 24, 'SUPERCHARGE (+AS & MS)!', '#d946ef', 12);
       }
     } else if (c.specId === 'jhin') {
-      // Jhin E: Captive Audience — Blooming Lotus Trap
+      // Jhin E: Captive Audience — 0.65s blooming delay
       const d = Math.min(320, dist(c.x, c.y, mx, my));
       spawnAoE({
-        x: c.x + Math.cos(baseAng) * d, y: c.y + Math.sin(baseAng) * d, radius: 98,
-        dmg: 160 + c.ad * 1.0, team: c.team, ownerIdx: idx, color: 'rgba(244,63,94,0.48)', dur: 2.0,
+        x: c.x + Math.cos(baseAng) * d, y: c.y + Math.sin(baseAng) * d, radius: 95, delay: 0.65,
+        dmg: 150 + c.ad * 0.90, team: c.team, ownerIdx: idx, color: 'rgba(244,63,94,0.48)', dur: 1.5,
         onHit: t => { t.slowTimer = 2.0; t.slowFactor = 0.45; t.jhinMarkTimer = 4.0; }
       });
     } else if (c.specId === 'sylas') {
@@ -4771,6 +4813,7 @@ function castAbility(idx, key, mx, my) {
           t.x = newX;
           t.y = clamp(rawY, BRIDGE_TOP + 24, BRIDGE_BOT - 24);
           t.targetX = t.x; t.targetY = t.y;
+          markDisplaced(t);
           dealDamage(t, 10, idx, { isSpell: true, isProc: true, addVayneBolt: true });
           if (hitWall && (!t.ccImmuneTimer || t.ccImmuneTimer <= 0)) {
             t.stunTimer = 1.55;
@@ -4782,14 +4825,15 @@ function castAbility(idx, key, mx, my) {
     } else if (c.specId === 'sett') {
       // Sett E: Facebreaker — Pulls enemies around Sett together and stuns them!
       spawnAoE({
-        x: c.x, y: c.y, radius: 155, dmg: 125 + c.ad * 0.75, team: c.team, ownerIdx: idx,
+        x: c.x, y: c.y, radius: 145, dmg: 115 + c.ad * 0.65, team: c.team, ownerIdx: idx,
         color: 'rgba(249,115,22,0.50)', dur: 0.32,
         onHit: t => {
           if (!t.ccImmuneTimer || t.ccImmuneTimer <= 0) {
             t.x = clamp(c.x + Math.cos(angle(c.x, c.y, t.x, t.y)) * 42, 75, WORLD_W - 75);
             t.y = clamp(c.y + Math.sin(angle(c.x, c.y, t.x, t.y)) * 42, BRIDGE_TOP + 24, BRIDGE_BOT - 24);
             t.targetX = t.x; t.targetY = t.y;
-            t.stunTimer = 1.05;
+            t.stunTimer = 0.90;
+            markDisplaced(t);
             addFloatText(t.x, t.y - 24, 'FACEBREAKER!', '#f97316', 13);
           }
         }
@@ -4929,12 +4973,13 @@ function castAbility(idx, key, mx, my) {
         const d = Math.min(265, dist(c.x, c.y, mx, my));
         const tx = clamp(c.x + Math.cos(a) * d, 80, WORLD_W - 80);
         const ty = clamp(c.y + Math.sin(a) * d, BRIDGE_TOP + 24, BRIDGE_BOT - 24);
-        spawnAoE({ x: tx, y: ty, radius: 100, dmg: 290 + c.ad * 1.1, isTrue: true, team: c.team, ownerIdx: idx, color: 'rgba(45,212,191,0.65)', dur: 0.40, onHit: t => {
-          if (t.level && t.hp / t.maxHp < 0.35) {
+        spawnAoE({ x: tx, y: ty, radius: 95, delay: 0.35, dmg: 250 + c.ad * 0.95, isTrue: true, team: c.team, ownerIdx: idx, color: 'rgba(45,212,191,0.65)', dur: 0.40, onHit: t => {
+          if (t.level && t.hp / t.maxHp < 0.30) {
             t.hp = 0;
             dealDamage(t, 9999, idx, { isTrue: true });
             c.rTimer = 0; c.gold += 150;
             c.x = tx; c.y = ty; c.targetX = tx; c.targetY = ty;
+            c.teleportGrace = 0.8; c.lifeEpoch = (c.lifeEpoch || 1) + 1;
             addFloatText(c.x, c.y - 30, 'DEATH FROM BELOW RESET!', '#2dd4bf', 14);
           }
         }});
@@ -5011,6 +5056,7 @@ function castAbility(idx, key, mx, my) {
           const destY = bestEn ? clamp(bestEn.y - Math.sin(baseAng) * 75, BRIDGE_TOP + 24, BRIDGE_BOT - 24) : clamp(c.y + Math.sin(a) * Math.min(380, dist(c.x, c.y, mx, my)), BRIDGE_TOP + 24, BRIDGE_BOT - 24);
           spawnBeam({ x1: c.x, y1: c.y, x2: destX, y2: destY, width: 16, dmg: 0, team: c.team, ownerIdx: idx, color: '#d946ef', dur: 0.25 });
           c.x = destX; c.y = destY; c.targetX = destX; c.targetY = destY;
+          c.teleportGrace = 1.0; c.lifeEpoch = (c.lifeEpoch || 1) + 1;
           const shVal = Math.round(290 + c.ad * 1.0 + c.ap * 0.80);
           c.shield += shVal; c.shieldTimer = 3.2;
           addFloatText(c.x, c.y - 28, `KILLER INSTINCT (+${shVal} SHIELD)!`, '#d946ef', 14);
@@ -5082,6 +5128,7 @@ function castAbility(idx, key, mx, my) {
             kicked.y = clamp(kicked.y + Math.sin(kickAng) * 260, BRIDGE_TOP + 24, BRIDGE_BOT - 24);
             kicked.targetX = kicked.x; kicked.targetY = kicked.y;
             kicked.stunTimer = 1.25;
+            markDisplaced(kicked);
             spawnAoE({ x: kicked.x, y: kicked.y, radius: 135, dmg: 340 + c.ad * 1.50, team: c.team, ownerIdx: idx, color: 'rgba(239,68,68,0.62)', dur: 0.45, onHit: t => {
               if (!t.ccImmuneTimer || t.ccImmuneTimer <= 0) t.stunTimer = 1.2;
             }});
@@ -5105,36 +5152,38 @@ function castAbility(idx, key, mx, my) {
         const tx = clamp(c.x + Math.cos(a) * d, 80, WORLD_W - 80);
         const ty = clamp(c.y + Math.sin(a) * d, BRIDGE_TOP + 24, BRIDGE_BOT - 24);
         if (oa === 0) {
-          c.x = tx; c.y = ty; c.targetX = tx; c.targetY = ty;
           const victim = G.champions.find(en => !en.dead && en.team !== c.team && dist(c.x, c.y, en.x, en.y) <= 170);
+          c.x = tx; c.y = ty; c.targetX = tx; c.targetY = ty;
+          c.teleportGrace = 0.8; c.lifeEpoch = (c.lifeEpoch || 1) + 1;
           if (victim) {
             victim.x = tx; victim.y = ty; victim.targetX = tx; victim.targetY = ty;
+            markDisplaced(victim);
           }
         }
-        spawnAoE({ x: tx, y: ty, radius: 155, dmg: 320 + c.ad * 1.25 + c.maxHp * 0.12, team: c.team, ownerIdx: idx, color: 'rgba(249,115,22,0.68)', dur: 0.50, onHit: t => {
-          t.slowTimer = 2.0; t.slowFactor = 0.75;
-          if (!t.ccImmuneTimer || t.ccImmuneTimer <= 0) t.stunTimer = 0.9;
+        spawnAoE({ x: tx, y: ty, radius: 145, dmg: 265 + c.ad * 1.10 + c.maxHp * 0.10, team: c.team, ownerIdx: idx, color: 'rgba(249,115,22,0.68)', dur: 0.50, onHit: t => {
+          t.slowTimer = 2.0; t.slowFactor = 0.70;
+          if (!t.ccImmuneTimer || t.ccImmuneTimer <= 0) t.stunTimer = 0.85;
           addFloatText(t.x, t.y - 28, 'THE SHOW STOPPER!', '#f97316', 15);
         }});
       } else if (c.specId === 'leona') {
-        // Leona R: Solar Flare — Calls down a solar beam at target location, stunning for 1.4s!
+        // Leona R: Solar Flare — 0.55s delay before stunning!
         const d = Math.min(380, dist(c.x, c.y, mx, my));
         const tx = clamp(c.x + Math.cos(a) * d, 80, WORLD_W - 80);
         const ty = clamp(c.y + Math.sin(a) * d, BRIDGE_TOP + 24, BRIDGE_BOT - 24);
-        spawnAoE({ x: tx, y: ty, radius: 135, dmg: 290 + c.ap * 0.85, team: c.team, ownerIdx: idx, color: 'rgba(250,204,21,0.68)', dur: 0.55, onHit: t => {
+        spawnAoE({ x: tx, y: ty, radius: 130, delay: 0.55, dmg: 260 + c.ap * 0.80, team: c.team, ownerIdx: idx, color: 'rgba(250,204,21,0.68)', dur: 0.50, onHit: t => {
           t.sunlightTimer = 3.5; t.sunlightOwner = idx;
-          if (!t.ccImmuneTimer || t.ccImmuneTimer <= 0) t.stunTimer = 1.4;
+          if (!t.ccImmuneTimer || t.ccImmuneTimer <= 0) t.stunTimer = 1.2;
           addFloatText(t.x, t.y - 28, 'SOLAR FLARE!', '#facc15', 14);
         }});
       } else if (c.specId === 'viktor') {
-        // Viktor R: Chaos Storm — Spawns a 3.5s singularity storm that automatically chases the nearest enemy champion!
+        // Viktor R: Chaos Storm — Balanced movement & tick damage
         const d = Math.min(340, dist(c.x, c.y, mx, my));
         const storm = {
           x: clamp(c.x + Math.cos(a) * d, 80, WORLD_W - 80),
           y: clamp(c.y + Math.sin(a) * d, BRIDGE_TOP + 24, BRIDGE_BOT - 24),
-          radius: 155, dmg: 150 + c.ap * 0.50, tickDmg: 58 + c.ap * 0.22, isSpell: true, isTrue: false,
+          radius: 145, dmg: 125 + c.ap * 0.42, tickDmg: 42 + c.ap * 0.16, isSpell: true, isTrue: false,
           team: c.team, ownerIdx: idx, color: 'rgba(245,158,11,0.48)',
-          timer: 3.5, maxTimer: 3.5, delay: 0, hit: false, tick: true, tickTimer: 0.50,
+          timer: 3.2, maxTimer: 3.2, delay: 0, hit: false, tick: true, tickTimer: 0.65,
           chasingStorm: true
         };
         G.aoes.push(storm);
@@ -5155,13 +5204,14 @@ function castSummonerSpell(idx, slotKey, mx, my) {
   const timerProp = isD ? 'dTimer' : 'fTimer';
 
   // Special case: Snowball 2nd Cast (DASH to Marked Target!)
-  if (spellId === 'snowball' && c.snowballTarget && c.snowballTimer > 0 && !c.snowballTarget.dead) {
-    const tgt = c.snowballTarget;
-    c.x = clamp(tgt.x - Math.cos(c.facing) * 35, 80, WORLD_W - 80);
-    c.y = clamp(tgt.y - Math.sin(c.facing) * 35, BRIDGE_TOP + 24, BRIDGE_BOT - 24);
+  const sbTarget = resolveTargetRef(c.snowballTarget);
+  if (spellId === 'snowball' && sbTarget && c.snowballTimer > 0) {
+    c.x = clamp(sbTarget.x - Math.cos(c.facing) * 35, 80, WORLD_W - 80);
+    c.y = clamp(sbTarget.y - Math.sin(c.facing) * 35, BRIDGE_TOP + 24, BRIDGE_BOT - 24);
     c.targetX = c.x; c.targetY = c.y;
+    c.teleportGrace = 1.0; c.lifeEpoch = (c.lifeEpoch || 1) + 1;
     c.snowballTarget = null; c.snowballTimer = 0;
-    dealDamage(tgt, 95 + c.level * 12, idx, { isTrue: true, isSpell: true });
+    dealDamage(sbTarget, 95 + c.level * 12, idx, { isTrue: true, isSpell: true });
     addParticles(c.x, c.y, '#38bdf8', 18, 170, 4.5);
     addFloatText(c.x, c.y - 28, 'KARTOPU ATILMASI!', '#38bdf8', 14);
     if (c.isPlayer) SFX.snowballDash();
@@ -5179,7 +5229,7 @@ function castSummonerSpell(idx, slotKey, mx, my) {
       x: c.x, y: c.y, ang, speed: 1280, maxRange: 560, maxHits: 1, dmg: 75 + c.level * 10, isSpell: true, isTrue: true,
       team: c.team, ownerIdx: idx, color: '#e0f2fe', r: 11, shape: 'orb',
       onHit: (t) => {
-        c.snowballTarget = t;
+        c.snowballTarget = encodeTargetRef(t);
         c.snowballTimer = 3.2;
         t.revealTimer = 3.5;
         addFloatText(t.x, t.y - 26, 'İŞARETLENDİ! (ATILMAK İÇİN BAS)', '#38bdf8', 13);
@@ -5729,6 +5779,9 @@ function updateGame(dt) {
 
     // Timers
     c.invulnTimer = Math.max(0, c.invulnTimer - dt);
+    c.teleportGrace = Math.max(0, (c.teleportGrace || 0) - dt);
+    c.displacedTimer = Math.max(0, (c.displacedTimer || 0) - dt);
+    c.hexgateCd = Math.max(0, (c.hexgateCd || 0) - dt);
     c.stunTimer = Math.max(0, c.stunTimer - dt);
     c.rootTimer = Math.max(0, c.rootTimer - dt);
     c.slowTimer = Math.max(0, c.slowTimer - dt);
@@ -5810,11 +5863,11 @@ function updateGame(dt) {
     if (c.specId === 'kata' && G.daggers && G.daggers.length > 0) {
       for (let di = G.daggers.length - 1; di >= 0; di--) {
         const dg = G.daggers[di];
-        if (dg.ownerIdx === i && dist(c.x, c.y, dg.x, dg.y) <= 64) {
+        if (dg.ownerIdx === i && dist(c.x, c.y, dg.x, dg.y) <= 62) {
           G.daggers.splice(di, 1);
-          c.eTimer = Math.min(c.eTimer, 1.2);
-          spawnAoE({ x: c.x, y: c.y, radius: 130, dmg: 145 + c.ap * 0.85 + c.ad * 0.70, team: c.team, ownerIdx: i, color: 'rgba(225,29,72,0.58)', dur: 0.30 });
-          addFloatText(c.x, c.y - 26, 'SİNSİ ÇELİK (E SIFIRLANDI)!', '#e11d48', 14);
+          c.eTimer = Math.min(c.eTimer, 2.0);
+          spawnAoE({ x: c.x, y: c.y, radius: 120, dmg: 115 + c.ap * 0.65 + c.ad * 0.50, team: c.team, ownerIdx: i, color: 'rgba(225,29,72,0.58)', dur: 0.30 });
+          addFloatText(c.x, c.y - 26, 'SİNSİ ÇELİK!', '#e11d48', 14);
         }
       }
     }
@@ -6164,6 +6217,10 @@ function updateGame(dt) {
       if (ow.dead || ow.stunTimer > 0) { a.timer = 0; continue; }
       a.x = ow.x; a.y = ow.y;
     }
+    if (a.delay && a.delay > 0) {
+      a.delay -= dt;
+      continue;
+    }
     if (a.chasingStorm) {
       let bestEn = null, minD = 550;
       for (const en of G.champions) {
@@ -6174,14 +6231,14 @@ function updateGame(dt) {
       }
       if (bestEn && minD > 12) {
         const sa = angle(a.x, a.y, bestEn.x, bestEn.y);
-        a.x += Math.cos(sa) * 145 * dt;
-        a.y += Math.sin(sa) * 145 * dt;
+        a.x += Math.cos(sa) * 110 * dt;
+        a.y += Math.sin(sa) * 110 * dt;
       }
     }
     if (a.tick) {
       a.tickTimer -= dt;
       if (a.tickTimer <= 0) {
-        a.tickTimer = 0.45;
+        a.tickTimer = a.chasingStorm ? 0.65 : 0.45;
         a.hit = false;
         a.isSubTick = true;
       }
@@ -7060,10 +7117,24 @@ function renderGame() {
   }
   for (const a of G.aoes) {
     ctx.save();
-    ctx.fillStyle = a.color;
-    ctx.strokeStyle = a.team === BLUE ? '#0ac8b9' : '#e84057';
-    ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(Math.round(a.x), Math.round(a.y), a.radius, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    const ax = Math.round(a.x), ay = Math.round(a.y);
+    if (a.delay && a.delay > 0) {
+      const prog = clamp(1 - (a.delay / Math.max(0.1, a.maxDelay || 0.6)), 0, 1);
+      ctx.setLineDash([6, 4]);
+      ctx.strokeStyle = a.team === BLUE ? '#38bdf8' : '#f43f5e';
+      ctx.fillStyle = a.team === BLUE ? 'rgba(56,189,248,0.12)' : 'rgba(244,63,94,0.12)';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(ax, ay, a.radius, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.strokeStyle = '#fde047';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(ax, ay, Math.max(6, a.radius * prog), 0, Math.PI * 2); ctx.stroke();
+    } else {
+      ctx.fillStyle = a.color;
+      ctx.strokeStyle = a.team === BLUE ? '#0ac8b9' : '#e84057';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(ax, ay, a.radius, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    }
     ctx.restore();
   }
   for (const ww of G.windWalls) {
@@ -7196,7 +7267,7 @@ function renderGame() {
     let statusStr = '';
     if (ch.stunTimer > 0) statusStr = '[SERSEMLEDİ]';
     else if (ch.rootTimer > 0) statusStr = '[MIHLANDI]';
-    else if (player && player.snowballTarget === ch && player.snowballTimer > 0) statusStr = '[İŞARETLİ - TEKRAR BAS]';
+    else if (player && resolveTargetRef(player.snowballTarget) === ch && player.snowballTimer > 0) statusStr = '[İŞARETLİ - TEKRAR BAS]';
     else if (ch.deathMarkTimer > 0) statusStr = '[ÖLÜM İŞARETİ]';
     else if ((ch.noxianMightTimer || 0) > 0) statusStr = '[NOXUS KUDRETİ!]';
     else if (ch.specId === 'jhin' && (ch.jhinReloadTimer || 0) > 0) statusStr = '[DOLDURULUYOR...]';
@@ -8029,9 +8100,10 @@ function handleLanMessage(msg) {
   } else if (msg.type === 'player_state' && G && msg.state) {
     const rc = G.champions[msg.champIdx];
     if (rc && msg.champIdx !== myChampIdx) {
-      // Ignore stale position packets sent while dead or from an older lifeEpoch!
-      if (rc.dead) return;
-      if (typeof msg.state.lifeEpoch === 'number' && msg.state.lifeEpoch !== (rc.lifeEpoch || 1)) return;
+      // Ignore stale position packets sent while dead, displaced, or from an older lifeEpoch!
+      if (rc.dead || (rc.displacedTimer || 0) > 0 || (rc.teleportGrace || 0) > 0) return;
+      if (typeof msg.state.lifeEpoch === 'number' && msg.state.lifeEpoch < (rc.lifeEpoch || 1)) return;
+      if (typeof msg.state.lifeEpoch === 'number' && msg.state.lifeEpoch > (rc.lifeEpoch || 1)) rc.lifeEpoch = msg.state.lifeEpoch;
       rc.netX = clamp(Number(msg.state.x) || rc.x, 70, WORLD_W - 70);
       rc.netY = clamp(Number(msg.state.y) || rc.y, BRIDGE_TOP + 22, BRIDGE_BOT - 22);
       rc.targetX = clamp(Number(msg.state.targetX) || rc.targetX, 70, WORLD_W - 70);
@@ -8079,11 +8151,21 @@ function applyPlayerAction(cIdx, act) {
   } else if (act.kind === 'summoner') {
     castSummonerSpell(cIdx, act.slot, act.mx, act.my);
   } else if (act.kind === 'hexgate') {
+    if (c.dead || (c.hexgateCd || 0) > 0) return;
     const isBlue = c.team === BLUE;
+    const myHex = G.hexgates.find(h => h.team === c.team);
+    if (!window._applyingRemoteAction && myHex && dist(c.x, c.y, myHex.x, myHex.y) > 280) {
+      if (cIdx === myChampIdx) addFloatText(c.x, c.y - 26, 'GEÇİDE YAKLAŞMALISIN!', '#e84057', 13);
+      return;
+    }
     const outerId = isBlue ? 'b_t1' : 'r_t1';
     const innerId = isBlue ? 'b_t2' : 'r_t2';
     const outerTurret = G.structures.find(s => s.id === outerId && !s.dead) || G.structures.find(s => s.id === innerId && !s.dead);
     const destX = outerTurret ? (isBlue ? outerTurret.x - 90 : outerTurret.x + 90) : (isBlue ? 1100 : WORLD_W - 1100);
+    c.hexgateCd = 12.0;
+    c.teleportGrace = 1.25;
+    c.lifeEpoch = (c.lifeEpoch || 1) + 1;
+    c.netX = undefined; c.netY = undefined;
     c.x = destX; c.y = LANE_Y;
     c.targetX = destX; c.targetY = LANE_Y;
     if (cIdx === myChampIdx) SFX.flash();
@@ -8280,7 +8362,14 @@ function buildWorldSnapshot() {
       eTimer: +(c.eTimer || 0).toFixed(2),
       rTimer: +(c.rTimer || 0).toFixed(2),
       dTimer: +(c.dTimer || 0).toFixed(2),
-      fTimer: +(c.fTimer || 0).toFixed(2)
+      fTimer: +(c.fTimer || 0).toFixed(2),
+      displacedTimer: +(c.displacedTimer || 0).toFixed(2),
+      snowballTimer: +(c.snowballTimer || 0).toFixed(2),
+      snowballTarget: encodeTargetRef(resolveTargetRef(c.snowballTarget)),
+      leeQTimer: +(c.leeQTimer || 0).toFixed(2),
+      leeQTarget: encodeTargetRef(resolveTargetRef(c.leeQTarget)),
+      threshQTimer: +(c.threshQTimer || 0).toFixed(2),
+      threshQTarget: encodeTargetRef(resolveTargetRef(c.threshQTarget))
     })),
     structures: G.structures.map(s => ({ id: s.id, hp: Math.round(s.hp), dead: s.dead, targetId: s.targetId, respawnTimer: s.respawnTimer })),
     relics: G.relics.map(r => ({ id: r.id, active: r.active, timer: r.timer })),
@@ -8301,6 +8390,7 @@ function buildWorldSnapshot() {
     aoes: G.aoes.slice(0, 20).map(a => ({
       x: Math.round(a.x), y: Math.round(a.y), radius: Math.round(a.radius),
       color: a.color, team: a.team,
+      delay: +(a.delay || 0).toFixed(2), maxDelay: +(a.maxDelay || 0).toFixed(2),
       timer: +(a.timer || 0.2).toFixed(2), maxTimer: +(a.maxTimer || 0.5).toFixed(2)
     })),
     beams: G.beams.slice(0, 12).map(b => ({
@@ -8478,7 +8568,22 @@ function applyWorldSync(snap, isInitialRejoin = false) {
           SFX.kill();
           screenShake = Math.max(screenShake, 10);
         }
-      } else if (((wasDead && !c.dead) || (epochChanged && !c.dead)) && !isInitialRejoin) {
+      if (typeof sc.stunTimer === 'number') c.stunTimer = sc.stunTimer;
+      if (typeof sc.rootTimer === 'number') c.rootTimer = sc.rootTimer;
+      if (typeof sc.snowballTimer === 'number') {
+        c.snowballTimer = sc.snowballTimer;
+        c.snowballTarget = sc.snowballTimer > 0 ? sc.snowballTarget : null;
+      }
+      if (typeof sc.leeQTimer === 'number') {
+        c.leeQTimer = sc.leeQTimer;
+        c.leeQTarget = sc.leeQTimer > 0 ? sc.leeQTarget : null;
+      }
+      if (typeof sc.threshQTimer === 'number') {
+        c.threshQTimer = sc.threshQTimer;
+        c.threshQTarget = sc.threshQTimer > 0 ? sc.threshQTarget : null;
+      }
+
+      if (wasDead && !c.dead && !isInitialRejoin) {
         c.netX = undefined;
         c.netY = undefined;
         c.x = c.spawnX;
@@ -8503,12 +8608,15 @@ function applyWorldSync(snap, isInitialRejoin = false) {
           if (typeof sc.facing === 'number') c.facing = sc.facing;
         }
       } else if (i === myChampIdx && !c.dead) {
-        const posDrift = dist(c.x, c.y, sc.x, sc.y);
-        if (isInitialRejoin || posDrift > 340) {
-          c.x = sc.x;
-          c.y = sc.y;
-          c.targetX = sc.targetX;
-          c.targetY = sc.targetY;
+        const hostDisplacedMe = (sc.displacedTimer && sc.displacedTimer > 0);
+        if ((c.teleportGrace || 0) <= 0) {
+          const posDrift = dist(c.x, c.y, sc.x, sc.y);
+          if (isInitialRejoin || hostDisplacedMe || posDrift > 420) {
+            c.x = sc.x;
+            c.y = sc.y;
+            c.targetX = sc.targetX;
+            c.targetY = sc.targetY;
+          }
         }
       }
     });
@@ -8566,6 +8674,7 @@ function applyWorldSync(snap, isInitialRejoin = false) {
       x: sa.x, y: sa.y, radius: sa.radius,
       dmg: 0, isSpell: true, hit: true,
       team: sa.team, color: sa.color,
+      delay: sa.delay || 0, maxDelay: sa.maxDelay || 0,
       timer: sa.timer || 0.25, maxTimer: sa.maxTimer || 0.5
     }));
   }
@@ -10340,9 +10449,6 @@ window.addEventListener('keydown', e => {
     } else if (k === 'S') {
       e.preventDefault();
       dispatchAction({ kind: 'stop' });
-    } else if (k === 'G') {
-      e.preventDefault();
-      dispatchAction({ kind: 'hexgate' });
     } else if (k === '4') {
       e.preventDefault();
       dispatchAction({ kind: 'snax' });
