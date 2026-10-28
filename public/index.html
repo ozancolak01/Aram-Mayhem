@@ -8568,6 +8568,8 @@ function applyWorldSync(snap, isInitialRejoin = false) {
           SFX.kill();
           screenShake = Math.max(screenShake, 10);
         }
+      }
+
       if (typeof sc.stunTimer === 'number') c.stunTimer = sc.stunTimer;
       if (typeof sc.rootTimer === 'number') c.rootTimer = sc.rootTimer;
       if (typeof sc.snowballTimer === 'number') {
