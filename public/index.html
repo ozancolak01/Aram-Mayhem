@@ -2,10 +2,10 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ARAM Mayhem">
 <meta name="theme-color" content="#010a13">
 <link rel="manifest" href="/manifest.webmanifest">
@@ -16,9 +16,32 @@
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
-  html, body { width: 100%; height: 100%; overflow: hidden; overscroll-behavior: none; background: #010a13; font-family: 'Inter', system-ui, sans-serif; color: #f0e6d2; touch-action: none; }
-  button, select, input, .hud-slot, .mob-round-btn, .champ-card, .bench-slot, .aug-card { touch-action: none; }
-  .overflow-y-auto { touch-action: pan-y !important; -webkit-overflow-scrolling: touch; }
+  html, body {
+    position: fixed; inset: 0;
+    width: 100%; height: 100%;
+    overflow: hidden; overscroll-behavior: none;
+    background: #010a13; font-family: 'Inter', system-ui, sans-serif; color: #f0e6d2;
+    touch-action: manipulation;
+    -webkit-text-size-adjust: 100%;
+  }
+  input, textarea { user-select: text; -webkit-user-select: text; }
+  button, select, input, .hud-slot, .champ-card, .bench-slot, .aug-card, .hex-btn, .hex-btn-primary {
+    touch-action: manipulation;
+    cursor: pointer;
+  }
+  .mob-round-btn, #mobileJoystickZone, #mobRightCluster, canvas#gameCanvas, #minimapCanvas {
+    touch-action: none !important;
+  }
+  .overflow-y-auto, #lobbyScreen, #shopItemsContainer, #augmentModal, #scoreboardModal > .hex-panel, #browserOnlinePlayersList, #lobbyChatLog, #gameChatLog {
+    touch-action: pan-y !important;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+  @media (pointer: coarse), (max-width: 1024px) {
+    input, select, textarea {
+      font-size: 16px !important;
+    }
+  }
   .font-cinzel { font-family: 'Cinzel', serif; }
 
   canvas#gameCanvas {
@@ -202,26 +225,118 @@
   }
   .augment-ready-btn { animation: hexPulse 1.4s infinite; }
 
-  /* Clean, Unobstructed Mobile Mode Layout */
+  /* Clean, Unobstructed Mobile Mode Layout + iOS Safe-Area & Landscape Support */
   body.mobile-mode #desktopBottomHud { display: none !important; }
   body.mobile-mode #desktopChatBox { display: none !important; }
   body.mobile-mode #minimapWrapper {
-    top: 38px !important; left: 6px !important; bottom: auto !important; right: auto !important;
-    transform: scale(0.62); transform-origin: top left; opacity: 0.88;
+    top: max(36px, calc(env(safe-area-inset-top, 0px) + 32px)) !important;
+    left: max(6px, calc(env(safe-area-inset-left, 0px) + 4px)) !important;
+    bottom: auto !important; right: auto !important;
+    transform: scale(0.62); transform-origin: top left; opacity: 0.90;
   }
   body.mobile-mode #topLeftAugBox {
-    top: 98px !important; left: 6px !important; width: 155px !important;
+    top: max(96px, calc(env(safe-area-inset-top, 0px) + 92px)) !important;
+    left: max(6px, calc(env(safe-area-inset-left, 0px) + 4px)) !important;
+    width: 155px !important;
   }
   body.mobile-mode #augListPanel {
     display: none !important;
   }
   body.mobile-mode #hudKillFeed {
-    top: 38px !important; right: 6px !important; transform: scale(0.82); transform-origin: top right;
+    top: max(36px, calc(env(safe-area-inset-top, 0px) + 32px)) !important;
+    right: max(6px, calc(env(safe-area-inset-right, 0px) + 4px)) !important;
+    transform: scale(0.82); transform-origin: top right;
+  }
+  #mobileJoystickZone {
+    left: max(12px, calc(env(safe-area-inset-left, 0px) + 8px)) !important;
+    bottom: max(12px, calc(env(safe-area-inset-bottom, 0px) + 8px)) !important;
+  }
+  #mobRightCluster {
+    right: max(8px, calc(env(safe-area-inset-right, 0px) + 6px)) !important;
+    bottom: max(8px, calc(env(safe-area-inset-bottom, 0px) + 4px)) !important;
+  }
+  #lobbyScreen {
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
   @media (min-width: 560px) {
     #mobStatusPill {
-      bottom: 8px !important;
-      left: 134px !important;
+      bottom: max(8px, calc(env(safe-area-inset-bottom, 0px) + 4px)) !important;
+      left: calc(max(12px, env(safe-area-inset-left, 0px)) + 122px) !important;
+    }
+  }
+  /* iOS / Mobile Landscape Compact Optimizations (Sideways Mode) */
+  @media (orientation: landscape) and (max-height: 540px) {
+    #mobileJoystickZone {
+      width: 104px !important;
+      height: 104px !important;
+      left: max(10px, calc(env(safe-area-inset-left, 0px) + 6px)) !important;
+      bottom: max(8px, calc(env(safe-area-inset-bottom, 0px) + 4px)) !important;
+    }
+    #mobStatusPill {
+      bottom: max(6px, calc(env(safe-area-inset-bottom, 0px) + 2px)) !important;
+      left: calc(max(10px, env(safe-area-inset-left, 0px)) + 114px) !important;
+      transform: scale(0.92);
+      transform-origin: bottom left;
+    }
+    #mobRightCluster {
+      right: max(8px, calc(env(safe-area-inset-right, 0px) + 4px)) !important;
+      bottom: max(6px, calc(env(safe-area-inset-bottom, 0px) + 2px)) !important;
+      transform: scale(0.86);
+      transform-origin: bottom right;
+    }
+    body.mobile-mode #minimapWrapper {
+      top: 32px !important;
+      transform: scale(0.56);
+    }
+    body.mobile-mode #topLeftAugBox {
+      top: 86px !important;
+    }
+    #customLobbyStage {
+      grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+      gap: 8px !important;
+      padding-top: 6px !important;
+      padding-bottom: 8px !important;
+    }
+    #lobbyBrowserStage > .grid,
+    #champSelectStage > .grid {
+      grid-template-columns: 7fr 5fr !important;
+      gap: 8px !important;
+    }
+    #champGrid {
+      grid-template-columns: repeat(8, minmax(0, 1fr)) !important;
+      gap: 4px !important;
+    }
+    #shopModal {
+      padding: 6px max(12px, env(safe-area-inset-right, 12px)) 6px max(12px, env(safe-area-inset-left, 12px)) !important;
+    }
+    #shopModal > .hex-panel {
+      max-height: calc(100% - 8px) !important;
+      padding: 10px 14px !important;
+    }
+    #shopItemsContainer {
+      max-height: calc(100vh - 145px) !important;
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+    #augmentModal {
+      padding: 8px max(12px, env(safe-area-inset-right, 12px)) !important;
+      justify-content: flex-start !important;
+    }
+    #augmentCardsRow {
+      flex-wrap: nowrap !important;
+      gap: 8px !important;
+      width: 100%;
+    }
+    .aug-card {
+      width: auto !important;
+      flex: 1 1 0% !important;
+      max-width: 240px !important;
+      padding: 10px !important;
+    }
+    #scoreboardModal > .hex-panel {
+      max-height: calc(100% - 12px) !important;
+      padding: 10px 14px !important;
     }
   }
 
@@ -807,7 +922,7 @@
   </div>
 </div>
 
-<div id="portraitRotateOverlay" class="hidden fixed inset-0 z-50 flex flex-col items-center justify-center p-6 text-center" style="background: rgba(1,10,19,0.97); z-index: 110;">
+<div id="portraitRotateOverlay" class="hidden fixed inset-0 z-50 flex flex-col items-center justify-center p-6 text-center" style="background: rgba(1,10,19,0.97); z-index: 105;">
   <div class="hex-panel max-w-sm w-full p-6 text-center space-y-4 border-2 border-[#0ac8b9]">
     <div class="text-4xl">📱↻</div>
     <h2 class="font-cinzel text-lg font-black text-[#f0e6d2] tracking-wider uppercase">TELEFONU YANA ÇEVİRİN</h2>
@@ -822,7 +937,7 @@
     </button>
   </div>
 </div>
-<div id="deviceSelectModal" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(1,10,19,0.96); z-index: 105;">
+<div id="deviceSelectModal" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(1,10,19,0.96); z-index: 120;">
   <div class="hex-panel max-w-md w-full p-5 text-center">
     <h1 class="font-cinzel text-xl md:text-2xl font-black text-[#f0e6d2] tracking-wider mb-2">
       CİHAZ SEÇİMİ
@@ -840,7 +955,7 @@
 </div>
 
 <!-- 0.5 SUMMONER NAME PROMPT MODAL (Shown after Device Select ONLY if no name is saved in localStorage) -->
-<div id="summonerNameModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(1,10,19,0.96); z-index: 102;">
+<div id="summonerNameModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(1,10,19,0.96); z-index: 115;">
   <div class="hex-panel max-w-md w-full p-6 text-center space-y-4">
     <div class="w-12 h-12 mx-auto bg-[#091428] border-2 border-[#c8aa6e] flex items-center justify-center font-cinzel font-black text-xl text-[#c8aa6e]">⚔️</div>
     <div>
@@ -2450,11 +2565,13 @@ let blueBots = ['blitz', 'jinxie']; // Pre-filled 3v3 action by default!
 let redBots = ['daren', 'ahria', 'yasu'];
 function detectTrueMobileDevice() {
   const ua = navigator.userAgent || '';
-  const isMobileUA = /Android|iPhone|iPad|iPod|Windows Phone|Mobile/i.test(ua);
+  const isIosTouch = /iPad|iPhone|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isMobileUA = isIosTouch || /Android|Windows Phone|Mobile/i.test(ua);
   const hasFinePointer = window.matchMedia && window.matchMedia('(any-pointer: fine)').matches;
   const hasCoarsePointer = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
   if (isMobileUA) return true;
-  if (!hasFinePointer && hasCoarsePointer && window.innerWidth < 1024) return true;
+  if (window.navigator.standalone === true) return true;
+  if (!hasFinePointer && hasCoarsePointer) return true;
   return false;
 }
 let isMobileMode = detectTrueMobileDevice();
@@ -2485,10 +2602,25 @@ let portraitDismissed = false;
 let pendingPingKind = null;
 let currentRttMs = 0;
 
+function getViewportDimensions() {
+  const vv = window.visualViewport;
+  const w = Math.round((vv && vv.width > 0) ? vv.width : (window.innerWidth || document.documentElement.clientWidth || 1280));
+  const h = Math.round((vv && vv.height > 0) ? vv.height : (window.innerHeight || document.documentElement.clientHeight || 720));
+  return { w, h };
+}
+
+function isLandscapeOrientation() {
+  if (typeof window.orientation === 'number' && Math.abs(window.orientation) === 90) return true;
+  if (screen.orientation && typeof screen.orientation.type === 'string' && screen.orientation.type.startsWith('landscape')) return true;
+  const { w, h } = getViewportDimensions();
+  return w >= h;
+}
+
 function checkMobileOrientationOverlay() {
   const ov = document.getElementById('portraitRotateOverlay');
   if (!ov) return;
-  const isPortrait = (window.innerHeight > window.innerWidth * 1.05);
+  const { w, h } = getViewportDimensions();
+  const isPortrait = !isLandscapeOrientation() && (h > w * 1.05);
   if (isMobileMode && isPortrait && !portraitDismissed) {
     ov.classList.remove('hidden');
   } else {
@@ -2525,8 +2657,7 @@ function dismissPortraitOverlay() {
 }
 
 function computeAutoZoom() {
-  const w = window.innerWidth || 1280;
-  const h = window.innerHeight || 720;
+  const { w, h } = getViewportDimensions();
   if (isMobileMode || w < 960 || h < 580) {
     if (w < h) {
       return clamp(w / 920, 0.44, 0.68);
@@ -2555,8 +2686,18 @@ function cycleWorldZoom() {
 }
 
 function screenToWorld(clientX, clientY) {
-  const cw = canvas ? canvas.width : window.innerWidth;
-  const ch = canvas ? canvas.height : window.innerHeight;
+  if (canvas) {
+    const rect = canvas.getBoundingClientRect();
+    const relX = clientX - rect.left;
+    const relY = clientY - rect.top;
+    const cw = rect.width || canvas.width || window.innerWidth;
+    const ch = rect.height || canvas.height || window.innerHeight;
+    return {
+      x: (relX - cw / 2) / worldZoom + camX,
+      y: (relY - ch / 2) / worldZoom + camY
+    };
+  }
+  const { w: cw, h: ch } = getViewportDimensions();
   return {
     x: (clientX - cw / 2) / worldZoom + camX,
     y: (clientY - ch / 2) / worldZoom + camY
@@ -2711,7 +2852,7 @@ function createChamp(team, idx, specId, isPlayer = false, customName = null, dSp
     burnOwner: -1, bleedOwner: -1, deathMarkOwner: -1, sunlightOwner: -1, permBonusHp: 0,
     inBush: false, stealthTimer: 0, revealTimer: 0,
     stunTimer: 0, rootTimer: 0, slowTimer: 0, slowFactor: 0,
-    invulnTimer: 1.0, dead: false, respawnTimer: 0, lifeEpoch: 1,
+    invulnTimer: 1.0, dead: false, respawnTimer: 0, lifeEpoch: 1, teleportSeq: 0, displacedSeq: 0,
     leftFountain: false, canShop: true,
     items: [], augments: [], pendingAugmentPhases: [3], augRerolls: 2,
     quest: null, monarch: false,
@@ -2900,7 +3041,9 @@ function openSummonerNameModal(forceEdit = false) {
   const initInp = document.getElementById('initialSummonerNameInput');
   if (initInp) {
     initInp.value = saved || '';
-    setTimeout(() => { try { initInp.focus(); initInp.select(); } catch (e) {} }, 60);
+    if (!IS_IOS && !isMobileMode) {
+      setTimeout(() => { try { initInp.focus(); initInp.select(); } catch (e) {} }, 60);
+    }
   }
   const errEl = document.getElementById('nameModalError');
   if (errEl) errEl.classList.add('hidden');
@@ -2917,9 +3060,11 @@ function confirmInitialSummonerName() {
     return;
   }
   if (errEl) errEl.classList.add('hidden');
+  if (initInp) { try { initInp.blur(); } catch (e) {} }
   syncSummonerNameEverywhere(val);
   const modal = document.getElementById('summonerNameModal');
   if (modal) modal.classList.add('hidden');
+  scheduleIosViewportSync();
   SFX.augmentOpen();
   renderLobby();
 }
@@ -3379,9 +3524,27 @@ function spawnProj(opts) {
 function markDisplaced(t) {
   if (t && t.level !== undefined) {
     t.lifeEpoch = (t.lifeEpoch || 1) + 1;
+    t.displacedSeq = (t.displacedSeq || 0) + 1;
     t.displacedTimer = 0.55;
     t.netX = undefined;
     t.netY = undefined;
+  }
+}
+function markClientTeleport(c, nx, ny, graceSec = 0.9) {
+  if (!c) return;
+  c.x = clamp(nx, 70, WORLD_W - 70);
+  c.y = clamp(ny, BRIDGE_TOP + 22, BRIDGE_BOT - 22);
+  c.targetX = c.x;
+  c.targetY = c.y;
+  c.attackTarget = null;
+  c.netX = undefined;
+  c.netY = undefined;
+  c.teleportGrace = Math.max(c.teleportGrace || 0, graceSec);
+  c.teleportSeq = (c.teleportSeq || 0) + 1;
+  c.lifeEpoch = (c.lifeEpoch || 1) + 1;
+  if (c.idx === myChampIdx) {
+    mouseLeftHeld = false;
+    mouseRightHeld = false;
   }
 }
 function encodeTargetRef(t) {
@@ -4066,9 +4229,30 @@ function performAutoAttack(idx, target) {
 // ═══ CAST ABILITY (Q, W, E, R) FOR ALL 16 CHAMPIONS (AUTHENTIC LOL MECHANICS & RANGES) ═══
 function castAbility(idx, key, mx, my) {
   const c = G.champions[idx];
-  if (!c || c.dead || c.stunTimer > 0) return;
+  if (!c || c.dead || (!window._applyingRemoteAction && c.stunTimer > 0)) return;
+  const remoteAct = window._applyingRemoteAction ? window._currentRemoteAct : null;
+  if (window._applyingRemoteAction) {
+    if (key === 'Q') c.qTimer = 0;
+    else if (key === 'W') c.wTimer = 0;
+    else if (key === 'E') c.eTimer = 0;
+    else if (key === 'R') c.rTimer = 0;
+  }
   if (lanConnected && isLanHost && !c.isPlayer && !window._applyingRemoteAction) {
-    sendWs({ type: 'player_action', champIdx: idx, fromBot: true, action: { kind: 'cast', key, mx: Math.round(mx), my: Math.round(my) } });
+    const botIsRecast = (key === 'Q') && (
+      (c.specId === 'leesin' && resolveTargetRef(c.leeQTarget) && (c.leeQTimer || 0) > 0) ||
+      (c.specId === 'thresh' && resolveTargetRef(c.threshQTarget) && (c.threshQTimer || 0) > 0)
+    );
+    sendWs({
+      type: 'player_action',
+      champIdx: idx,
+      fromBot: true,
+      action: {
+        kind: 'cast', key, mx: Math.round(mx), my: Math.round(my),
+        fromX: Math.round(c.x), fromY: Math.round(c.y),
+        isDashRecast: Boolean(botIsRecast),
+        dashTargetRef: botIsRecast ? (c.leeQTarget || c.threshQTarget) : null
+      }
+    });
   }
   const spec = CHAMP_SPECS[c.specId];
   const baseAng = angle(c.x, c.y, mx, my);
@@ -4081,8 +4265,12 @@ function castAbility(idx, key, mx, my) {
   const rAngles = c.rMulti ? [-0.20, 0, 0.20] : [0];
 
   if (key === 'Q' && c.qTimer <= 0) {
-    if (c.mana < spec.qCost) return;
-    c.mana -= spec.qCost;
+    const isFreeQRecast = (remoteAct && remoteAct.isDashRecast) ||
+      (c.specId === 'leesin' && resolveTargetRef(c.leeQTarget) && (c.leeQTimer || 0) > 0) ||
+      (c.specId === 'thresh' && resolveTargetRef(c.threshQTarget) && (c.threshQTimer || 0) > 0);
+    const qManaCost = isFreeQRecast ? 0 : spec.qCost;
+    if (!window._applyingRemoteAction && c.mana < qManaCost) return;
+    c.mana = Math.max(0, c.mana - qManaCost);
     if (c.specId !== 'jinxie' && c.specId !== 'ashela') {
       c.facing = baseAng;
       c.animSwing = 0.25;
@@ -4214,21 +4402,21 @@ function castAbility(idx, key, mx, my) {
         }});
       } else if (c.specId === 'thresh') {
         // Thresh Q: Death Sentence (Q1 Hook + Q2 Death Leap Recast!)
-        const thTgt = resolveTargetRef(c.threshQTarget);
-        if (oa === 0 && thTgt && (c.threshQTimer || 0) > 0) {
-          c.threshQTarget = null; c.threshQTimer = 0;
-          c.x = clamp(thTgt.x, 80, WORLD_W - 80);
-          c.y = clamp(thTgt.y, BRIDGE_TOP + 24, BRIDGE_BOT - 24);
-          c.targetX = c.x; c.targetY = c.y;
-          c.teleportGrace = 0.8; c.lifeEpoch = (c.lifeEpoch || 1) + 1;
+        const thTgt = resolveTargetRef((remoteAct && remoteAct.dashTargetRef) || c.threshQTarget);
+        const isThreshRecast = remoteAct ? Boolean(remoteAct.isDashRecast) : Boolean(thTgt && (c.threshQTimer || 0) > 0);
+        if (oa === 0 && isThreshRecast) {
+          c.threshQTarget = null; c.threshQTimer = 0; c._lastDashConsumeTime = G.time;
+          const destX = (remoteAct && remoteAct.teleportTo) ? remoteAct.teleportTo.x : (thTgt ? thTgt.x : c.x);
+          const destY = (remoteAct && remoteAct.teleportTo) ? remoteAct.teleportTo.y : (thTgt ? thTgt.y : c.y);
+          markClientTeleport(c, destX, destY, 0.9);
           addFloatText(c.x, c.y - 26, 'ÖLÜM SIÇRAYIŞI!', '#10b981', 13);
-        } else {
+        } else if (!remoteAct || !remoteAct.isDashRecast) {
           spawnProj({ x: c.x, y: c.y, ang: a, speed: 1150, maxRange: 385, maxHits: 1, dmg: 160 + c.ap * 0.85, isSpell: true, team: c.team, ownerIdx: idx, color: '#10b981', r: 12, drawHookChain: true, shape: 'hook', onHit: t => {
             if (!t.ccImmuneTimer || t.ccImmuneTimer <= 0) {
               t.x = (t.x + c.x) * 0.5; t.y = (t.y + c.y) * 0.5;
               t.targetX = t.x; t.targetY = t.y; t.stunTimer = 1.25;
               markDisplaced(t);
-              c.threshQTarget = encodeTargetRef(t); c.threshQTimer = 2.5;
+              c.threshQTarget = encodeTargetRef(t); c.threshQTimer = 2.5; c._localMarkSetTime = G.time;
               c.qTimer = 0.25;
               addFloatText(t.x, t.y - 26, 'YAKALANDI (ATILMAK İÇİN Q)!', '#10b981', 13);
             }
@@ -4312,20 +4500,22 @@ function castAbility(idx, key, mx, my) {
         }, 380);
       } else if (c.specId === 'leesin') {
         // Lee Sin Q: Sonic Wave (Q1) / Resonating Strike (Q2 flying kick!)
-        const leeTgt = resolveTargetRef(c.leeQTarget);
-        if (oa === 0 && leeTgt && (c.leeQTimer || 0) > 0) {
-          c.leeQTarget = null; c.leeQTimer = 0;
-          c.x = clamp(leeTgt.x - Math.cos(baseAng) * 32, 80, WORLD_W - 80);
-          c.y = clamp(leeTgt.y - Math.sin(baseAng) * 32, BRIDGE_TOP + 24, BRIDGE_BOT - 24);
-          c.targetX = c.x; c.targetY = c.y;
-          c.teleportGrace = 0.8; c.lifeEpoch = (c.lifeEpoch || 1) + 1;
-          const missBonus = (leeTgt.maxHp - leeTgt.hp) * 0.18;
-          dealDamage(leeTgt, 135 + c.ad * 1.05 + missBonus, idx, { isSpell: true });
-          addFloatText(leeTgt.x, leeTgt.y - 26, 'TİTREŞİM DARBESİ!', '#ef4444', 14);
-        } else {
+        const leeTgt = resolveTargetRef((remoteAct && remoteAct.dashTargetRef) || c.leeQTarget);
+        const isLeeRecast = remoteAct ? Boolean(remoteAct.isDashRecast) : Boolean(leeTgt && (c.leeQTimer || 0) > 0);
+        if (oa === 0 && isLeeRecast) {
+          c.leeQTarget = null; c.leeQTimer = 0; c._lastDashConsumeTime = G.time;
+          const destX = (remoteAct && remoteAct.teleportTo) ? remoteAct.teleportTo.x : (leeTgt ? leeTgt.x - Math.cos(baseAng) * 32 : c.x);
+          const destY = (remoteAct && remoteAct.teleportTo) ? remoteAct.teleportTo.y : (leeTgt ? leeTgt.y - Math.sin(baseAng) * 32 : c.y);
+          markClientTeleport(c, destX, destY, 0.9);
+          if (leeTgt) {
+            const missBonus = (leeTgt.maxHp - leeTgt.hp) * 0.18;
+            dealDamage(leeTgt, 135 + c.ad * 1.05 + missBonus, idx, { isSpell: true });
+          }
+          addFloatText(c.x, c.y - 26, 'TİTREŞİM DARBESİ!', '#ef4444', 14);
+        } else if (!remoteAct || !remoteAct.isDashRecast) {
           spawnProj({ x: c.x, y: c.y, ang: a, speed: 1180, maxRange: 375, maxHits: 1, dmg: 130 + c.ad * 0.95, isSpell: true, team: c.team, ownerIdx: idx, color: '#38bdf8', r: 10, shape: 'orb', onHit: t => {
             t.revealTimer = 3.5;
-            c.leeQTarget = encodeTargetRef(t); c.leeQTimer = 3.0;
+            c.leeQTarget = encodeTargetRef(t); c.leeQTimer = 3.0; c._localMarkSetTime = G.time;
             c.qTimer = 0.25; // Allow immediate Q2 recast!
             addFloatText(t.x, t.y - 24, 'SES İŞARETİ (ATILMAK İÇİN Q)!', '#38bdf8', 12);
           }});
@@ -4333,9 +4523,7 @@ function castAbility(idx, key, mx, my) {
       } else if (c.specId === 'vayne') {
         // Vayne Q: Tumble — Short roll, resets attack timer, empowers next shot (+ invisibility during R!)
         if (oa === 0) {
-          c.x = clamp(c.x + Math.cos(a) * 145, 80, WORLD_W - 80);
-          c.y = clamp(c.y + Math.sin(a) * 145, BRIDGE_TOP + 24, BRIDGE_BOT - 24);
-          c.targetX = c.x; c.targetY = c.y;
+          markClientTeleport(c, c.x + Math.cos(a) * 145, c.y + Math.sin(a) * 145, 0.65);
           c.atkTimer = 0;
           c.vayneQReady = true;
           if ((c.vayneUltTimer || 0) > 0) {
@@ -4381,8 +4569,8 @@ function castAbility(idx, key, mx, my) {
   }
 
   else if (key === 'W' && c.wTimer <= 0) {
-    if (c.mana < spec.wCost) return;
-    c.mana -= spec.wCost;
+    if (!window._applyingRemoteAction && c.mana < spec.wCost) return;
+    c.mana = Math.max(0, c.mana - spec.wCost);
     if (!['blitz', 'daren', 'pykeo', 'kata', 'mf'].includes(c.specId)) {
       c.facing = baseAng;
       c.animSwing = 0.25;
@@ -4429,7 +4617,7 @@ function castAbility(idx, key, mx, my) {
         const sx = c.zedShadow.x, sy = c.zedShadow.y;
         c.zedShadow.x = c.x; c.zedShadow.y = c.y;
         c.zedShadow.swapped = true;
-        c.x = sx; c.y = sy; c.targetX = sx; c.targetY = sy;
+        markClientTeleport(c, sx, sy, 0.85);
         c.mana = Math.min(c.maxMana, c.mana + 35);
         addParticles(c.x, c.y, '#ef4444', 12, 140, 4);
         addFloatText(c.x, c.y - 24, 'SHADOW SWAP!', '#ef4444', 13);
@@ -4540,9 +4728,7 @@ function castAbility(idx, key, mx, my) {
     } else if (c.specId === 'sylas') {
       // Sylas W: Kingslayer — Balanced heal & AoE
       const d = Math.min(165, dist(c.x, c.y, mx, my));
-      c.x = clamp(c.x + Math.cos(baseAng) * d, 80, WORLD_W - 80);
-      c.y = clamp(c.y + Math.sin(baseAng) * d, BRIDGE_TOP + 24, BRIDGE_BOT - 24);
-      c.targetX = c.x; c.targetY = c.y;
+      markClientTeleport(c, c.x + Math.cos(baseAng) * d, c.y + Math.sin(baseAng) * d, 0.65);
       const lowMult = (c.hp / c.maxHp < 0.40) ? 1.45 : 1.0;
       const healAmt = Math.round((105 + c.ap * 0.42) * lowMult);
       c.hp = Math.min(c.maxHp, c.hp + healAmt);
@@ -4551,9 +4737,7 @@ function castAbility(idx, key, mx, my) {
     } else if (c.specId === 'leesin') {
       // Lee Sin W: Safeguard / Iron Will — Dashes toward cursor/ally, grants Shield & Lifesteal
       const d = Math.min(180, dist(c.x, c.y, mx, my));
-      c.x = clamp(c.x + Math.cos(baseAng) * d, 80, WORLD_W - 80);
-      c.y = clamp(c.y + Math.sin(baseAng) * d, BRIDGE_TOP + 24, BRIDGE_BOT - 24);
-      c.targetX = c.x; c.targetY = c.y;
+      markClientTeleport(c, c.x + Math.cos(baseAng) * d, c.y + Math.sin(baseAng) * d, 0.75);
       c.shield += 240 + c.ad * 0.80; c.shieldTimer = 3.5;
       addFloatText(c.x, c.y - 24, 'SAFEGUARD SHIELD!', '#fbbf24', 12);
     } else if (c.specId === 'vayne') {
@@ -4604,8 +4788,8 @@ function castAbility(idx, key, mx, my) {
   }
 
   else if (key === 'E' && c.eTimer <= 0) {
-    if (c.mana < spec.eCost) return;
-    c.mana -= spec.eCost;
+    if (!window._applyingRemoteAction && c.mana < spec.eCost) return;
+    c.mana = Math.max(0, c.mana - spec.eCost);
     if (c.specId !== 'morga') {
       c.facing = baseAng;
       c.animSwing = 0.25;
@@ -4620,9 +4804,7 @@ function castAbility(idx, key, mx, my) {
       }});
     } else if (c.specId === 'yasu') {
       c.lastYasuoETime = G.time;
-      c.x = clamp(c.x + Math.cos(baseAng) * 165, 80, WORLD_W - 80);
-      c.y = clamp(c.y + Math.sin(baseAng) * 165, BRIDGE_TOP + 24, BRIDGE_BOT - 24);
-      c.targetX = c.x; c.targetY = c.y;
+      markClientTeleport(c, c.x + Math.cos(baseAng) * 165, c.y + Math.sin(baseAng) * 165, 0.65);
       spawnAoE({ x: c.x, y: c.y, radius: 80, dmg: 105 + c.ad * 0.75, team: c.team, ownerIdx: idx, color: 'rgba(56,189,248,0.45)', dur: 0.22 });
     } else if (c.specId === 'jinxie') {
       // Jinx E: Flame Chompers! — 0.45s arming time
@@ -4663,6 +4845,7 @@ function castAbility(idx, key, mx, my) {
           t.x = clamp(t.x - Math.cos(baseAng) * 38, 75, WORLD_W - 75);
           t.y = clamp(t.y - Math.sin(baseAng) * 38, BRIDGE_TOP + 24, BRIDGE_BOT - 24);
           t.targetX = t.x; t.targetY = t.y;
+          markDisplaced(t);
           addFloatText(t.x, t.y - 24, 'CHARMED (+20% DMG)!', '#f472b6', 13);
         }
       }});
@@ -4679,9 +4862,7 @@ function castAbility(idx, key, mx, my) {
       }});
     } else if (c.specId === 'ezre') {
       // Ezreal E: Arcane Shift — 205 range blink + homing bolt on nearest enemy (prioritizing W-marked!)
-      c.x = clamp(c.x + Math.cos(baseAng) * 205, 80, WORLD_W - 80);
-      c.y = clamp(c.y + Math.sin(baseAng) * 205, BRIDGE_TOP + 24, BRIDGE_BOT - 24);
-      c.targetX = c.x; c.targetY = c.y;
+      markClientTeleport(c, c.x + Math.cos(baseAng) * 205, c.y + Math.sin(baseAng) * 205, 0.8);
       addParticles(c.x, c.y, '#fbbf24', 12, 130, 3.5);
       let nearEn = null, nearD = 295;
       for (const en of G.champions) {
@@ -4713,9 +4894,7 @@ function castAbility(idx, key, mx, my) {
       addFloatText(c.x, c.y - 24, 'BLACK SHIELD (CC IMMUNE)', '#a855f7', 12);
     } else if (c.specId === 'pykeo') {
       const oldX = c.x, oldY = c.y;
-      c.x = clamp(c.x + Math.cos(baseAng) * 215, 80, WORLD_W - 80);
-      c.y = clamp(c.y + Math.sin(baseAng) * 215, BRIDGE_TOP + 24, BRIDGE_BOT - 24);
-      c.targetX = c.x; c.targetY = c.y;
+      markClientTeleport(c, c.x + Math.cos(baseAng) * 215, c.y + Math.sin(baseAng) * 215, 0.8);
       spawnAoE({ x: (oldX + c.x) / 2, y: (oldY + c.y) / 2, radius: 85, dmg: 140 + c.ad * 0.9, team: c.team, ownerIdx: idx, color: 'rgba(45,212,191,0.5)', dur: 0.40, onHit: t => {
         if (!t.ccImmuneTimer || t.ccImmuneTimer <= 0) t.stunTimer = 1.15;
       }});
@@ -4729,9 +4908,8 @@ function castAbility(idx, key, mx, my) {
     } else if (c.specId === 'kata') {
       // Katarina E: Shunpo — 255 max blink range
       const d = Math.min(255, dist(c.x, c.y, mx, my));
-      c.x = clamp(c.x + Math.cos(baseAng) * d, 80, WORLD_W - 80);
-      c.y = clamp(c.y + Math.sin(baseAng) * d, BRIDGE_TOP + 24, BRIDGE_BOT - 24);
-      c.targetX = c.x; c.targetY = c.y; c.atkTimer = 0;
+      markClientTeleport(c, c.x + Math.cos(baseAng) * d, c.y + Math.sin(baseAng) * d, 0.85);
+      c.atkTimer = 0;
       let hitChamp = false;
       spawnAoE({ x: c.x, y: c.y, radius: 85, dmg: 115 + c.ap * 0.55 + c.ad * 0.45, team: c.team, ownerIdx: idx, color: 'rgba(225,29,72,0.52)', dur: 0.25, onHit: t => {
         if (t.level && !hitChamp) {
@@ -4777,18 +4955,15 @@ function castAbility(idx, key, mx, my) {
       });
     } else if (c.specId === 'sylas') {
       // Sylas E: Abscond / Abduct — Dashes forward and throws chains that pull Sylas to the hit enemy!
-      c.x = clamp(c.x + Math.cos(baseAng) * 110, 80, WORLD_W - 80);
-      c.y = clamp(c.y + Math.sin(baseAng) * 110, BRIDGE_TOP + 24, BRIDGE_BOT - 24);
-      c.targetX = c.x; c.targetY = c.y;
+      markClientTeleport(c, c.x + Math.cos(baseAng) * 110, c.y + Math.sin(baseAng) * 110, 0.65);
       spawnProj({
         x: c.x, y: c.y, ang: baseAng, speed: 1220, maxRange: 345, maxHits: 1,
         dmg: 150 + c.ap * 0.85, isSpell: true, team: c.team, ownerIdx: idx,
         color: '#38bdf8', r: 12, drawHookChain: true, shape: 'hook',
         onHit: t => {
           if (!t.ccImmuneTimer || t.ccImmuneTimer <= 0) t.stunTimer = 0.85;
-          c.x = clamp(t.x - Math.cos(baseAng) * 34, 80, WORLD_W - 80);
-          c.y = clamp(t.y - Math.sin(baseAng) * 34, BRIDGE_TOP + 24, BRIDGE_BOT - 24);
-          c.targetX = c.x; c.targetY = c.y;
+          markClientTeleport(c, t.x - Math.cos(baseAng) * 34, t.y - Math.sin(baseAng) * 34, 0.85);
+          markDisplaced(c);
           addFloatText(t.x, t.y - 26, 'ABDUCTED!', '#38bdf8', 13);
         }
       });
@@ -4848,9 +5023,8 @@ function castAbility(idx, key, mx, my) {
           t.sunlightTimer = 3.5; t.sunlightOwner = idx;
           if (t.level) {
             if (!t.ccImmuneTimer || t.ccImmuneTimer <= 0) t.rootTimer = 0.75;
-            c.x = clamp(t.x - Math.cos(baseAng) * 32, 80, WORLD_W - 80);
-            c.y = clamp(t.y - Math.sin(baseAng) * 32, BRIDGE_TOP + 24, BRIDGE_BOT - 24);
-            c.targetX = c.x; c.targetY = c.y;
+            markClientTeleport(c, t.x - Math.cos(baseAng) * 32, t.y - Math.sin(baseAng) * 32, 0.85);
+            markDisplaced(c);
             addFloatText(t.x, t.y - 24, 'ZENITH BLADE!', '#facc15', 13);
           }
         }
@@ -4873,8 +5047,8 @@ function castAbility(idx, key, mx, my) {
     // Ahri R (Spirit Rush) 3-Cast Recast Logic (recasts cost 0 mana!)
     const isAhriRecast = (c.specId === 'ahria' && c.ahriRCharges > 0 && c.ahriRTimer > 0);
     if (!isAhriRecast) {
-      if (c.mana < spec.rCost) return;
-      c.mana -= spec.rCost;
+      if (!window._applyingRemoteAction && c.mana < spec.rCost) return;
+      c.mana = Math.max(0, c.mana - spec.rCost);
     }
     c.facing = baseAng;
     c.animSwing = 0.3;
@@ -4891,9 +5065,7 @@ function castAbility(idx, key, mx, my) {
       } else if (c.specId === 'yasu') {
         const d = Math.min(270, dist(c.x, c.y, mx, my));
         if (oa === 0) {
-          c.x = clamp(c.x + Math.cos(a) * d, 80, WORLD_W - 80);
-          c.y = clamp(c.y + Math.sin(a) * d, BRIDGE_TOP + 24, BRIDGE_BOT - 24);
-          c.targetX = c.x; c.targetY = c.y;
+          markClientTeleport(c, c.x + Math.cos(a) * d, c.y + Math.sin(a) * d, 0.85);
         }
         spawnAoE({ x: c.x, y: c.y, radius: 130, dmg: 330 + c.ad * 1.35, team: c.team, ownerIdx: idx, color: 'rgba(56,189,248,0.6)', dur: 0.5, onHit: t => {
           if (!t.ccImmuneTimer || t.ccImmuneTimer <= 0) t.stunTimer = 1.0;
@@ -4917,8 +5089,7 @@ function castAbility(idx, key, mx, my) {
         const ty = clamp(c.y + Math.sin(a) * d, BRIDGE_TOP + 24, BRIDGE_BOT - 24);
         if (oa === 0) {
           c.zedShadow = { x: c.x, y: c.y, timer: 4.5 };
-          c.x = tx; c.y = ty;
-          c.targetX = c.x; c.targetY = c.y;
+          markClientTeleport(c, tx, ty, 0.85);
           c.invulnTimer = Math.max(c.invulnTimer || 0, 0.45);
         }
         spawnAoE({ x: tx, y: ty, radius: 110, dmg: 250 + c.ad * 1.15, team: c.team, ownerIdx: idx, color: 'rgba(220,38,38,0.65)', dur: 0.45, onHit: t => {
@@ -4928,9 +5099,7 @@ function castAbility(idx, key, mx, my) {
       } else if (c.specId === 'ahria') {
         // Ahri R: Spirit Rush — 3-Dash Ultimate + homing essence bolts
         if (oa === 0) {
-          c.x = clamp(c.x + Math.cos(a) * 195, 80, WORLD_W - 80);
-          c.y = clamp(c.y + Math.sin(a) * 195, BRIDGE_TOP + 24, BRIDGE_BOT - 24);
-          c.targetX = c.x; c.targetY = c.y;
+          markClientTeleport(c, c.x + Math.cos(a) * 195, c.y + Math.sin(a) * 195, 0.8);
           if (!isAhriRecast) {
             c.ahriRCharges = 2;
             c.ahriRTimer = 8.0;
@@ -4957,7 +5126,7 @@ function castAbility(idx, key, mx, my) {
         const d = Math.min(195, dist(c.x, c.y, mx, my));
         const tx = clamp(c.x + Math.cos(a) * d, 80, WORLD_W - 80);
         const ty = clamp(c.y + Math.sin(a) * d, BRIDGE_TOP + 24, BRIDGE_BOT - 24);
-        if (oa === 0) { c.x = tx; c.y = ty; c.targetX = tx; c.targetY = ty; }
+        if (oa === 0) { markClientTeleport(c, tx, ty, 0.8); }
         spawnAoE({ x: tx, y: ty, radius: 100, dmg: 290 + c.ad * 1.15 + (c.bleedStacks || 0) * 65, isTrue: true, team: c.team, ownerIdx: idx, color: 'rgba(251,191,36,0.68)', dur: 0.40, onHit: t => {
           if (t.hp <= 0) { c.rTimer = 0; addFloatText(c.x, c.y - 30, 'GUILLOTINE RESET!', '#fbbf24', 14); }
         }});
@@ -4978,8 +5147,8 @@ function castAbility(idx, key, mx, my) {
             t.hp = 0;
             dealDamage(t, 9999, idx, { isTrue: true });
             c.rTimer = 0; c.gold += 150;
-            c.x = tx; c.y = ty; c.targetX = tx; c.targetY = ty;
-            c.teleportGrace = 0.8; c.lifeEpoch = (c.lifeEpoch || 1) + 1;
+            markClientTeleport(c, tx, ty, 0.85);
+            markDisplaced(c);
             addFloatText(c.x, c.y - 30, 'DEATH FROM BELOW RESET!', '#2dd4bf', 14);
           }
         }});
@@ -5039,7 +5208,7 @@ function castAbility(idx, key, mx, my) {
         const d = Math.min(325, dist(c.x, c.y, mx, my));
         const tx = clamp(c.x + Math.cos(a) * d, 80, WORLD_W - 80);
         const ty = clamp(c.y + Math.sin(a) * d, BRIDGE_TOP + 24, BRIDGE_BOT - 24);
-        if (oa === 0) { c.x = tx; c.y = ty; c.targetX = tx; c.targetY = ty; }
+        if (oa === 0) { markClientTeleport(c, tx, ty, 0.9); }
         spawnAoE({ x: tx, y: ty, radius: 150, dmg: 350 + c.ap * 1.0 + c.armor * 0.5, team: c.team, ownerIdx: idx, color: 'rgba(168,162,158,0.68)', dur: 0.50, onHit: t => {
           if (!t.ccImmuneTimer || t.ccImmuneTimer <= 0) t.stunTimer = 1.5;
           addFloatText(t.x, t.y - 28, 'UNSTOPPABLE FORCE!', '#fde047', 14);
@@ -5055,8 +5224,7 @@ function castAbility(idx, key, mx, my) {
           const destX = bestEn ? clamp(bestEn.x - Math.cos(baseAng) * 115, 80, WORLD_W - 80) : clamp(c.x + Math.cos(a) * Math.min(380, dist(c.x, c.y, mx, my)), 80, WORLD_W - 80);
           const destY = bestEn ? clamp(bestEn.y - Math.sin(baseAng) * 75, BRIDGE_TOP + 24, BRIDGE_BOT - 24) : clamp(c.y + Math.sin(a) * Math.min(380, dist(c.x, c.y, mx, my)), BRIDGE_TOP + 24, BRIDGE_BOT - 24);
           spawnBeam({ x1: c.x, y1: c.y, x2: destX, y2: destY, width: 16, dmg: 0, team: c.team, ownerIdx: idx, color: '#d946ef', dur: 0.25 });
-          c.x = destX; c.y = destY; c.targetX = destX; c.targetY = destY;
-          c.teleportGrace = 1.0; c.lifeEpoch = (c.lifeEpoch || 1) + 1;
+          markClientTeleport(c, destX, destY, 1.0);
           const shVal = Math.round(290 + c.ad * 1.0 + c.ap * 0.80);
           c.shield += shVal; c.shieldTimer = 3.2;
           addFloatText(c.x, c.y - 28, `KILLER INSTINCT (+${shVal} SHIELD)!`, '#d946ef', 14);
@@ -5107,7 +5275,7 @@ function castAbility(idx, key, mx, my) {
           }});
         } else if (hijackedSpecId === 'malph' || hijackedSpecId === 'leona' || hijackedSpecId === 'sett' || hijackedSpecId === 'daren' || hijackedSpecId === 'pykeo') {
           if (oa === 0 && (hijackedSpecId === 'malph' || hijackedSpecId === 'sett')) {
-            c.x = tx; c.y = ty; c.targetX = tx; c.targetY = ty;
+            markClientTeleport(c, tx, ty, 0.85);
           }
           spawnAoE({ x: tx, y: ty, radius: 165, dmg: 340 + c.ap * 1.05, isTrue: (hijackedSpecId === 'daren' || hijackedSpecId === 'pykeo'), team: c.team, ownerIdx: idx, color: 'rgba(56,189,248,0.68)', dur: 0.50, onHit: t => {
             if (!t.ccImmuneTimer || t.ccImmuneTimer <= 0) t.stunTimer = 1.35;
@@ -5153,8 +5321,7 @@ function castAbility(idx, key, mx, my) {
         const ty = clamp(c.y + Math.sin(a) * d, BRIDGE_TOP + 24, BRIDGE_BOT - 24);
         if (oa === 0) {
           const victim = G.champions.find(en => !en.dead && en.team !== c.team && dist(c.x, c.y, en.x, en.y) <= 170);
-          c.x = tx; c.y = ty; c.targetX = tx; c.targetY = ty;
-          c.teleportGrace = 0.8; c.lifeEpoch = (c.lifeEpoch || 1) + 1;
+          markClientTeleport(c, tx, ty, 0.85);
           if (victim) {
             victim.x = tx; victim.y = ty; victim.targetX = tx; victim.targetY = ty;
             markDisplaced(victim);
@@ -5196,22 +5363,37 @@ function castAbility(idx, key, mx, my) {
 function castSummonerSpell(idx, slotKey, mx, my) {
   const c = G.champions[idx];
   if (!c || c.dead) return;
-  if (lanConnected && isLanHost && !c.isPlayer && !window._applyingRemoteAction) {
-    sendWs({ type: 'player_action', champIdx: idx, fromBot: true, action: { kind: 'summoner', slot: slotKey, mx: Math.round(mx), my: Math.round(my) } });
-  }
+  const remoteAct = window._applyingRemoteAction ? window._currentRemoteAct : null;
   const isD = (slotKey === 'D');
   const spellId = isD ? c.spellD : c.spellF;
   const timerProp = isD ? 'dTimer' : 'fTimer';
 
+  if (lanConnected && isLanHost && !c.isPlayer && !window._applyingRemoteAction) {
+    const botSnowballRecast = (spellId === 'snowball' && resolveTargetRef(c.snowballTarget) && c.snowballTimer > 0);
+    sendWs({
+      type: 'player_action',
+      champIdx: idx,
+      fromBot: true,
+      action: {
+        kind: 'summoner', slot: slotKey, mx: Math.round(mx), my: Math.round(my),
+        fromX: Math.round(c.x), fromY: Math.round(c.y),
+        isDashRecast: Boolean(botSnowballRecast),
+        dashTargetRef: botSnowballRecast ? c.snowballTarget : null
+      }
+    });
+  }
+
   // Special case: Snowball 2nd Cast (DASH to Marked Target!)
-  const sbTarget = resolveTargetRef(c.snowballTarget);
-  if (spellId === 'snowball' && sbTarget && c.snowballTimer > 0) {
-    c.x = clamp(sbTarget.x - Math.cos(c.facing) * 35, 80, WORLD_W - 80);
-    c.y = clamp(sbTarget.y - Math.sin(c.facing) * 35, BRIDGE_TOP + 24, BRIDGE_BOT - 24);
-    c.targetX = c.x; c.targetY = c.y;
-    c.teleportGrace = 1.0; c.lifeEpoch = (c.lifeEpoch || 1) + 1;
-    c.snowballTarget = null; c.snowballTimer = 0;
-    dealDamage(sbTarget, 95 + c.level * 12, idx, { isTrue: true, isSpell: true });
+  const sbTarget = resolveTargetRef((remoteAct && remoteAct.dashTargetRef) || c.snowballTarget);
+  const isSnowballRecast = (spellId === 'snowball') && (remoteAct ? Boolean(remoteAct.isDashRecast) : Boolean(sbTarget && c.snowballTimer > 0));
+  if (isSnowballRecast) {
+    const destX = (remoteAct && remoteAct.teleportTo) ? remoteAct.teleportTo.x : (sbTarget ? sbTarget.x - Math.cos(c.facing) * 35 : c.x);
+    const destY = (remoteAct && remoteAct.teleportTo) ? remoteAct.teleportTo.y : (sbTarget ? sbTarget.y - Math.sin(c.facing) * 35 : c.y);
+    markClientTeleport(c, destX, destY, 1.0);
+    c.snowballTarget = null; c.snowballTimer = 0; c._lastDashConsumeTime = G.time;
+    if (sbTarget) {
+      dealDamage(sbTarget, 95 + c.level * 12, idx, { isTrue: true, isSpell: true });
+    }
     addParticles(c.x, c.y, '#38bdf8', 18, 170, 4.5);
     addFloatText(c.x, c.y - 28, 'KARTOPU ATILMASI!', '#38bdf8', 14);
     if (c.isPlayer) SFX.snowballDash();
@@ -5219,6 +5401,7 @@ function castSummonerSpell(idx, slotKey, mx, my) {
     return;
   }
 
+  if (window._applyingRemoteAction) c[timerProp] = 0;
   if (c[timerProp] > 0) return;
   const ang = angle(c.x, c.y, mx, my);
   const spec = SUMMONER_SPELLS[spellId] || SUMMONER_SPELLS.snowball;
@@ -5231,6 +5414,7 @@ function castSummonerSpell(idx, slotKey, mx, my) {
       onHit: (t) => {
         c.snowballTarget = encodeTargetRef(t);
         c.snowballTimer = 3.2;
+        c._localMarkSetTime = G.time;
         t.revealTimer = 3.5;
         addFloatText(t.x, t.y - 26, 'İŞARETLENDİ! (ATILMAK İÇİN BAS)', '#38bdf8', 13);
         if (c.snowballNova) {
@@ -5245,9 +5429,7 @@ function castSummonerSpell(idx, slotKey, mx, my) {
     const rawDist = dist(c.x, c.y, mx, my);
     const d = rawDist < 40 ? 210 : Math.min(210, rawDist);
     c.facing = ang;
-    c.x = clamp(c.x + Math.cos(ang) * d, 80, WORLD_W - 80);
-    c.y = clamp(c.y + Math.sin(ang) * d, BRIDGE_TOP + 24, BRIDGE_BOT - 24);
-    c.targetX = c.x; c.targetY = c.y;
+    markClientTeleport(c, c.x + Math.cos(ang) * d, c.y + Math.sin(ang) * d, 0.85);
     addParticles(c.x, c.y, '#fde047', 16, 160, 4);
     addFloatText(c.x, c.y - 24, 'SIÇRA!', '#fde047', 13);
     c[timerProp] = spec.cd;
@@ -8092,22 +8274,31 @@ function handleLanMessage(msg) {
     }
   } else if (msg.type === 'player_action') {
     window._applyingRemoteAction = true;
+    window._currentRemoteAct = msg.action || null;
     try {
       applyPlayerAction(msg.champIdx, msg.action);
     } finally {
       window._applyingRemoteAction = false;
+      window._currentRemoteAct = null;
     }
   } else if (msg.type === 'player_state' && G && msg.state) {
     const rc = G.champions[msg.champIdx];
     if (rc && msg.champIdx !== myChampIdx) {
-      // Ignore stale position packets sent while dead, displaced, or from an older lifeEpoch!
-      if (rc.dead || (rc.displacedTimer || 0) > 0 || (rc.teleportGrace || 0) > 0) return;
+      // Ignore stale position packets sent while dead, displaced, or from an older lifeEpoch / teleportSeq!
+      if (rc.dead || (rc.displacedTimer || 0) > 0) return;
       if (typeof msg.state.lifeEpoch === 'number' && msg.state.lifeEpoch < (rc.lifeEpoch || 1)) return;
+      if (typeof msg.state.teleportSeq === 'number' && msg.state.teleportSeq < (rc.teleportSeq || 0)) return;
       if (typeof msg.state.lifeEpoch === 'number' && msg.state.lifeEpoch > (rc.lifeEpoch || 1)) rc.lifeEpoch = msg.state.lifeEpoch;
+      const isNewTeleport = typeof msg.state.teleportSeq === 'number' && msg.state.teleportSeq > (rc.teleportSeq || 0);
+      if (isNewTeleport) rc.teleportSeq = msg.state.teleportSeq;
       rc.netX = clamp(Number(msg.state.x) || rc.x, 70, WORLD_W - 70);
       rc.netY = clamp(Number(msg.state.y) || rc.y, BRIDGE_TOP + 22, BRIDGE_BOT - 22);
       rc.targetX = clamp(Number(msg.state.targetX) || rc.targetX, 70, WORLD_W - 70);
       rc.targetY = clamp(Number(msg.state.targetY) || rc.targetY, BRIDGE_TOP + 22, BRIDGE_BOT - 22);
+      if (isNewTeleport) {
+        rc.x = rc.netX;
+        rc.y = rc.netY;
+      }
       if (typeof msg.state.facing === 'number') rc.facing = msg.state.facing;
     }
   } else if (msg.type === 'world_sync' && G && (!isLanHost || isSpectatorMode)) {
@@ -8118,15 +8309,71 @@ function handleLanMessage(msg) {
 
 function dispatchAction(action) {
   if (!inGame || !G || isSpectatorMode) return;
+  const me = getMyChamp();
+  const prevTeleportSeq = me ? (me.teleportSeq || 0) : 0;
+  if (me && !me.dead) {
+    if (action.kind === 'cast' || action.kind === 'summoner') {
+      action.fromX = Math.round(me.x);
+      action.fromY = Math.round(me.y);
+      me._lastCastTime = G.time;
+    }
+    if (action.kind === 'cast' && action.key === 'Q') {
+      if (me.specId === 'leesin' && resolveTargetRef(me.leeQTarget) && (me.leeQTimer || 0) > 0) {
+        action.isDashRecast = true;
+        action.dashTargetRef = me.leeQTarget;
+      } else if (me.specId === 'thresh' && resolveTargetRef(me.threshQTarget) && (me.threshQTimer || 0) > 0) {
+        action.isDashRecast = true;
+        action.dashTargetRef = me.threshQTarget;
+      }
+    } else if (action.kind === 'summoner') {
+      const spId = action.slot === 'D' ? me.spellD : me.spellF;
+      if (spId === 'snowball' && resolveTargetRef(me.snowballTarget) && (me.snowballTimer || 0) > 0) {
+        action.isDashRecast = true;
+        action.dashTargetRef = me.snowballTarget;
+      }
+    }
+  }
   applyPlayerAction(myChampIdx, action);
+  if (action.kind === 'hexgate' && me && (me.teleportSeq || 0) === prevTeleportSeq) {
+    return;
+  }
+  if (me && (me.teleportSeq || 0) > prevTeleportSeq) {
+    action.teleportTo = {
+      x: Math.round(me.x),
+      y: Math.round(me.y),
+      seq: me.teleportSeq,
+      lifeEpoch: me.lifeEpoch || 1
+    };
+  }
   if (lanConnected) {
     sendWs({ type: 'player_action', champIdx: myChampIdx, action });
+    if (action.teleportTo && me && !me.dead) {
+      sendWs({
+        type: 'player_state',
+        champIdx: myChampIdx,
+        state: {
+          x: Math.round(me.x),
+          y: Math.round(me.y),
+          targetX: Math.round(me.targetX),
+          targetY: Math.round(me.targetY),
+          facing: +(me.facing.toFixed(2)),
+          lifeEpoch: me.lifeEpoch || 1,
+          teleportSeq: me.teleportSeq || 0
+        }
+      });
+    }
   }
 }
 
 function applyPlayerAction(cIdx, act) {
-  if (!G || !G.champions[cIdx]) return;
+  if (!G || !G.champions[cIdx] || !act) return;
   const c = G.champions[cIdx];
+  if (window._applyingRemoteAction && !c.dead && (c.displacedTimer || 0) <= 0 && typeof act.fromX === 'number' && typeof act.fromY === 'number') {
+    if (dist(c.x, c.y, act.fromX, act.fromY) <= 260) {
+      c.x = clamp(act.fromX, 70, WORLD_W - 70);
+      c.y = clamp(act.fromY, BRIDGE_TOP + 22, BRIDGE_BOT - 22);
+    }
+  }
   if (act.kind === 'move') {
     if (c.dead) return;
     c.targetX = clamp(act.x, 70, WORLD_W - 70);
@@ -8151,23 +8398,20 @@ function applyPlayerAction(cIdx, act) {
   } else if (act.kind === 'summoner') {
     castSummonerSpell(cIdx, act.slot, act.mx, act.my);
   } else if (act.kind === 'hexgate') {
-    if (c.dead || (c.hexgateCd || 0) > 0) return;
+    if (c.dead || (!window._applyingRemoteAction && (c.hexgateCd || 0) > 0)) return;
     const isBlue = c.team === BLUE;
     const myHex = G.hexgates.find(h => h.team === c.team);
-    if (!window._applyingRemoteAction && myHex && dist(c.x, c.y, myHex.x, myHex.y) > 280) {
+    if (!window._applyingRemoteAction && myHex && dist(c.x, c.y, myHex.x, myHex.y) > 320) {
       if (cIdx === myChampIdx) addFloatText(c.x, c.y - 26, 'GEÇİDE YAKLAŞMALISIN!', '#e84057', 13);
       return;
     }
     const outerId = isBlue ? 'b_t1' : 'r_t1';
     const innerId = isBlue ? 'b_t2' : 'r_t2';
     const outerTurret = G.structures.find(s => s.id === outerId && !s.dead) || G.structures.find(s => s.id === innerId && !s.dead);
-    const destX = outerTurret ? (isBlue ? outerTurret.x - 90 : outerTurret.x + 90) : (isBlue ? 1100 : WORLD_W - 1100);
+    const destX = (act.teleportTo && typeof act.teleportTo.x === 'number') ? act.teleportTo.x : (outerTurret ? (isBlue ? outerTurret.x - 90 : outerTurret.x + 90) : (isBlue ? 1100 : WORLD_W - 1100));
+    const destY = (act.teleportTo && typeof act.teleportTo.y === 'number') ? act.teleportTo.y : LANE_Y;
     c.hexgateCd = 12.0;
-    c.teleportGrace = 1.25;
-    c.lifeEpoch = (c.lifeEpoch || 1) + 1;
-    c.netX = undefined; c.netY = undefined;
-    c.x = destX; c.y = LANE_Y;
-    c.targetX = destX; c.targetY = LANE_Y;
+    markClientTeleport(c, destX, destY, 1.25);
     if (cIdx === myChampIdx) SFX.flash();
     addParticles(c.x, c.y, isBlue ? '#0ac8b9' : '#e84057', 20, 180, 4);
     addFloatText(c.x, c.y - 26, 'HEXTECH GEÇİDİ!', isBlue ? '#0ac8b9' : '#e84057', 14);
@@ -8243,6 +8487,22 @@ function applyPlayerAction(cIdx, act) {
     if (SFX[meta.sfx]) SFX[meta.sfx]();
     appendChatMessage(c.summonerName, `${meta.label} sinyali gönderdi`, c.team);
   }
+  if (window._applyingRemoteAction && act.teleportTo && typeof act.teleportTo.x === 'number' && typeof act.teleportTo.y === 'number' && !c.dead) {
+    c.x = clamp(act.teleportTo.x, 70, WORLD_W - 70);
+    c.y = clamp(act.teleportTo.y, BRIDGE_TOP + 22, BRIDGE_BOT - 22);
+    c.targetX = c.x;
+    c.targetY = c.y;
+    c.netX = c.x;
+    c.netY = c.y;
+    c.attackTarget = null;
+    c.teleportGrace = Math.max(c.teleportGrace || 0, 0.9);
+    if (typeof act.teleportTo.seq === 'number') {
+      c.teleportSeq = Math.max(c.teleportSeq || 0, act.teleportTo.seq);
+    }
+    if (typeof act.teleportTo.lifeEpoch === 'number') {
+      c.lifeEpoch = Math.max(c.lifeEpoch || 1, act.teleportTo.lifeEpoch);
+    }
+  }
 }
 
 let lastWorldSyncSeq = 0;
@@ -8285,7 +8545,8 @@ function netTick(dt) {
           targetX: Math.round(me.targetX),
           targetY: Math.round(me.targetY),
           facing: +(me.facing.toFixed(2)),
-          lifeEpoch: me.lifeEpoch || 1
+          lifeEpoch: me.lifeEpoch || 1,
+          teleportSeq: me.teleportSeq || 0
         }
       });
     }
@@ -8340,6 +8601,7 @@ function buildWorldSnapshot() {
       shield: Math.round(c.shield), level: c.level, xp: Math.round(c.xp), nextXp: c.nextXp, gold: Math.round(c.gold),
       kills: c.kills, deaths: c.deaths, assists: c.assists, cs: c.cs, streak: c.streak || 0, totalDmg: Math.round(c.totalDmg || 0),
       dead: Boolean(c.dead), respawnTimer: +(c.respawnTimer || 0).toFixed(2), lifeEpoch: c.lifeEpoch || 1,
+      teleportSeq: c.teleportSeq || 0, displacedSeq: c.displacedSeq || 0, teleportGrace: +(c.teleportGrace || 0).toFixed(2),
       stunTimer: +(c.stunTimer || 0).toFixed(2), rootTimer: +(c.rootTimer || 0).toFixed(2),
       leftFountain: Boolean(c.leftFountain), canShop: Boolean(c.canShop),
       itemIds: c.items.map(it => it.id),
@@ -8535,7 +8797,8 @@ function applyWorldSync(snap, isInitialRejoin = false) {
       if (typeof sc.totalDmg === 'number') c.totalDmg = sc.totalDmg;
       c.dead = Boolean(sc.dead);
       c.respawnTimer = sc.respawnTimer;
-      if (typeof sc.lifeEpoch === 'number') c.lifeEpoch = sc.lifeEpoch;
+      if (typeof sc.lifeEpoch === 'number') c.lifeEpoch = Math.max(c.lifeEpoch || 1, sc.lifeEpoch);
+      if (typeof sc.teleportSeq === 'number') c.teleportSeq = Math.max(c.teleportSeq || 0, sc.teleportSeq);
 
       restoreChampionItemsAndAugments(c, sc, isInitialRejoin || i !== myChampIdx);
 
@@ -8572,17 +8835,37 @@ function applyWorldSync(snap, isInitialRejoin = false) {
 
       if (typeof sc.stunTimer === 'number') c.stunTimer = sc.stunTimer;
       if (typeof sc.rootTimer === 'number') c.rootTimer = sc.rootTimer;
-      if (typeof sc.snowballTimer === 'number') {
-        c.snowballTimer = sc.snowballTimer;
-        c.snowballTarget = sc.snowballTimer > 0 ? sc.snowballTarget : null;
+      const recentlyConsumedDash = (G.time - (c._lastDashConsumeTime || -99)) < 0.75;
+      const recentlySetLocalMark = (G.time - (c._localMarkSetTime || -99)) < 0.45;
+      if (typeof sc.snowballTimer === 'number' && !recentlyConsumedDash) {
+        if (sc.snowballTimer > 0 || !recentlySetLocalMark) {
+          c.snowballTimer = sc.snowballTimer;
+          c.snowballTarget = sc.snowballTimer > 0 ? sc.snowballTarget : null;
+        }
       }
-      if (typeof sc.leeQTimer === 'number') {
-        c.leeQTimer = sc.leeQTimer;
-        c.leeQTarget = sc.leeQTimer > 0 ? sc.leeQTarget : null;
+      if (typeof sc.leeQTimer === 'number' && !recentlyConsumedDash) {
+        if (sc.leeQTimer > 0 || !recentlySetLocalMark) {
+          c.leeQTimer = sc.leeQTimer;
+          c.leeQTarget = sc.leeQTimer > 0 ? sc.leeQTarget : null;
+          if (sc.leeQTimer > 0 && typeof sc.qTimer === 'number') {
+            c.qTimer = Math.min(c.qTimer, sc.qTimer);
+          }
+        }
       }
-      if (typeof sc.threshQTimer === 'number') {
-        c.threshQTimer = sc.threshQTimer;
-        c.threshQTarget = sc.threshQTimer > 0 ? sc.threshQTarget : null;
+      if (typeof sc.threshQTimer === 'number' && !recentlyConsumedDash) {
+        if (sc.threshQTimer > 0 || !recentlySetLocalMark) {
+          c.threshQTimer = sc.threshQTimer;
+          c.threshQTarget = sc.threshQTimer > 0 ? sc.threshQTarget : null;
+          if (sc.threshQTimer > 0 && typeof sc.qTimer === 'number') {
+            c.qTimer = Math.min(c.qTimer, sc.qTimer);
+          }
+        }
+      }
+      if (i === myChampIdx && (G.time - (c._lastCastTime || -99)) > 0.45) {
+        if (typeof sc.qTimer === 'number' && sc.qTimer < c.qTimer - 0.4) c.qTimer = sc.qTimer;
+        if (typeof sc.wTimer === 'number' && sc.wTimer < c.wTimer - 0.4) c.wTimer = sc.wTimer;
+        if (typeof sc.eTimer === 'number' && sc.eTimer < c.eTimer - 0.4) c.eTimer = sc.eTimer;
+        if (typeof sc.rTimer === 'number' && sc.rTimer < c.rTimer - 0.4) c.rTimer = sc.rTimer;
       }
 
       if (wasDead && !c.dead && !isInitialRejoin) {
@@ -8603,17 +8886,34 @@ function applyWorldSync(snap, isInitialRejoin = false) {
         }
       } else if (i !== myChampIdx) {
         if (!c.dead) {
-          c.netX = sc.x;
-          c.netY = sc.y;
-          c.targetX = sc.targetX;
-          c.targetY = sc.targetY;
-          if (typeof sc.facing === 'number') c.facing = sc.facing;
+          const remoteStaleTeleport = (typeof sc.teleportSeq === 'number' && sc.teleportSeq < (c.teleportSeq || 0));
+          if (!remoteStaleTeleport) {
+            c.netX = sc.x;
+            c.netY = sc.y;
+            c.targetX = sc.targetX;
+            c.targetY = sc.targetY;
+            if (typeof sc.facing === 'number') c.facing = sc.facing;
+          }
         }
       } else if (i === myChampIdx && !c.dead) {
-        const hostDisplacedMe = (sc.displacedTimer && sc.displacedTimer > 0);
-        if ((c.teleportGrace || 0) <= 0) {
+        const isNewHostDisplacement = (typeof sc.displacedSeq === 'number' && sc.displacedSeq > (c.displacedSeq || 0));
+        const hostDisplacedMe = isNewHostDisplacement || ((sc.displacedTimer && sc.displacedTimer > 0) && (c.teleportGrace || 0) <= 0);
+        if (typeof sc.displacedSeq === 'number' && sc.displacedSeq > (c.displacedSeq || 0)) {
+          c.displacedSeq = sc.displacedSeq;
+        }
+        const hostAckedMyTeleport = (typeof sc.teleportSeq !== 'number') || (sc.teleportSeq >= (c.teleportSeq || 0));
+        if (isInitialRejoin || hostDisplacedMe) {
+          c.x = sc.x;
+          c.y = sc.y;
+          c.targetX = sc.targetX;
+          c.targetY = sc.targetY;
+          if (isNewHostDisplacement) {
+            c.teleportSeq = (c.teleportSeq || 0) + 1;
+            c.teleportGrace = 0.55;
+          }
+        } else if (hostAckedMyTeleport && (c.teleportGrace || 0) <= 0 && (sc.teleportGrace || 0) <= 0) {
           const posDrift = dist(c.x, c.y, sc.x, sc.y);
-          if (isInitialRejoin || hostDisplacedMe || posDrift > 420) {
+          if (posDrift > 650) {
             c.x = sc.x;
             c.y = sc.y;
             c.targetX = sc.targetX;
@@ -10056,28 +10356,49 @@ function mobileSmartAttack(preferKind = 'any', silentIfLocked = false) {
 function initMobileTouchControls() {
   applyMobileModeUI();
 
-  // 0. Global Anti-Zoom Shield for iOS Safari & Android Chrome
+  // 0. Pinch-Zoom Shield for iOS Safari & Standalone WebApp (NOTE: never preventDefault on touchend, which breaks iOS click events!)
   window.addEventListener('dblclick', e => { e.preventDefault(); }, { passive: false });
   window.addEventListener('gesturestart', e => { e.preventDefault(); }, { passive: false });
   window.addEventListener('gesturechange', e => { e.preventDefault(); }, { passive: false });
   window.addEventListener('gestureend', e => { e.preventDefault(); }, { passive: false });
-  let lastTouchEndTime = 0;
-  document.addEventListener('touchend', e => {
-    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) return;
-    const now = performance.now();
-    if (now - lastTouchEndTime <= 340) {
-      e.preventDefault();
-    }
-    lastTouchEndTime = now;
+
+  // 0b. Multi-Touch Instant Tap Delegate for iOS WebKit:
+  // On iOS, when Thumb 1 holds the left joystick, tapping a <button onclick="..."> with Thumb 2
+  // often fails to synthesize a native 'click' event. We trigger interactive HUD/Shop/Action buttons immediately on touchstart!
+  let lastSyntheticTapTs = 0;
+  document.addEventListener('touchstart', e => {
+    ensureAudio();
+    if (!e.changedTouches || !e.changedTouches.length) return;
+    const t = e.changedTouches[0];
+    const targetEl = t.target && t.target.closest ? t.target.closest(
+      '#mobShopBtn, #mobBtnSnax, #mobBtnGate, #hudTopShopBtn, #hudOpenAugmentBtn, #hudZoomBtn, #hudCamLockBtn, #hudScoreboardBtn, #hudAudioBtn, #hudLobbyBtn, #pingAtkBtn, #pingOmwBtn, #pingDngBtn, #pingMiaBtn, #mobQuickBuyRow button'
+    ) : null;
+    if (!targetEl || targetEl.disabled) return;
+    e.preventDefault();
+    e.stopPropagation();
+    lastSyntheticTapTs = performance.now();
+    targetEl.click();
   }, { passive: false });
 
-  // 1. Left Virtual Analog Joystick
+  document.addEventListener('click', e => {
+    if (performance.now() - lastSyntheticTapTs < 380 && e.isTrusted) {
+      const targetEl = e.target && e.target.closest ? e.target.closest(
+        '#mobShopBtn, #mobBtnSnax, #mobBtnGate, #hudTopShopBtn, #hudOpenAugmentBtn, #hudZoomBtn, #hudCamLockBtn, #hudScoreboardBtn, #hudAudioBtn, #hudLobbyBtn, #pingAtkBtn, #pingOmwBtn, #pingDngBtn, #pingMiaBtn, #mobQuickBuyRow button'
+      ) : null;
+      if (targetEl) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }
+  }, true);
+
+  // 1. Left Virtual Analog Joystick (Identifier-Tracked Multi-Touch + Pointer Support for iOS Landscape)
   const joyZone = document.getElementById('mobileJoystickZone');
   const joyKnob = document.getElementById('mobileJoystickKnob');
   if (joyZone && joyKnob) {
-    const maxR = 46;
     const handleJoyMove = (clientX, clientY) => {
       const rect = joyZone.getBoundingClientRect();
+      const maxR = Math.max(34, Math.min(46, rect.width * 0.40));
       const cx = rect.left + rect.width / 2;
       const cy = rect.top + rect.height / 2;
       let dx = clientX - cx;
@@ -10095,7 +10416,42 @@ function initMobileTouchControls() {
       joyKnob.style.transform = 'translate(0px, 0px)';
     };
 
+    joyZone.addEventListener('touchstart', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      ensureAudio();
+      const t = e.changedTouches[0];
+      if (!t) return;
+      mobileJoy.active = true;
+      mobileJoy.id = 't_' + t.identifier;
+      handleJoyMove(t.clientX, t.clientY);
+    }, { passive: false });
+
+    joyZone.addEventListener('touchmove', e => {
+      if (!mobileJoy.active) return;
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const t = e.changedTouches[i];
+        if ('t_' + t.identifier === mobileJoy.id) {
+          e.preventDefault();
+          handleJoyMove(t.clientX, t.clientY);
+          break;
+        }
+      }
+    }, { passive: false });
+
+    const endJoyTouch = e => {
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        if ('t_' + e.changedTouches[i].identifier === mobileJoy.id) {
+          resetJoy();
+          break;
+        }
+      }
+    };
+    joyZone.addEventListener('touchend', endJoyTouch, { passive: false });
+    joyZone.addEventListener('touchcancel', resetJoy, { passive: false });
+
     joyZone.addEventListener('pointerdown', e => {
+      if (e.pointerType === 'touch') return;
       e.preventDefault();
       ensureAudio();
       try { joyZone.setPointerCapture(e.pointerId); } catch (_) {}
@@ -10104,21 +10460,35 @@ function initMobileTouchControls() {
       handleJoyMove(e.clientX, e.clientY);
     });
     joyZone.addEventListener('pointermove', e => {
-      if (!mobileJoy.active || e.pointerId !== mobileJoy.id) return;
+      if (e.pointerType === 'touch' || !mobileJoy.active || e.pointerId !== mobileJoy.id) return;
       handleJoyMove(e.clientX, e.clientY);
     });
     joyZone.addEventListener('pointerup', e => {
-      if (e.pointerId === mobileJoy.id) resetJoy();
+      if (e.pointerType !== 'touch' && e.pointerId === mobileJoy.id) resetJoy();
     });
-    joyZone.addEventListener('pointercancel', resetJoy);
+    joyZone.addEventListener('pointercancel', e => {
+      if (e.pointerType !== 'touch') resetJoy();
+    });
   }
 
-  // 2. Primary Attack, Minion & Tower Buttons (Support Both Tap AND Continuous Hold!)
+  // 2. Primary Attack, Minion & Tower Buttons (Support Both Tap AND Continuous Hold with Multi-Touch!)
   const bindHoldAttackBtn = (btnId, kind) => {
     const el = document.getElementById(btnId);
     if (!el) return;
     el.onclick = null;
+    el.addEventListener('touchstart', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      ensureAudio();
+      mobileHoldAttack = kind;
+      mobileSmartAttack(kind, false);
+    }, { passive: false });
+    const stopHold = () => { if (mobileHoldAttack === kind) mobileHoldAttack = null; };
+    el.addEventListener('touchend', stopHold, { passive: false });
+    el.addEventListener('touchcancel', stopHold, { passive: false });
+
     el.addEventListener('pointerdown', e => {
+      if (e.pointerType === 'touch') return;
       e.preventDefault();
       e.stopPropagation();
       ensureAudio();
@@ -10126,38 +10496,33 @@ function initMobileTouchControls() {
       mobileHoldAttack = kind;
       mobileSmartAttack(kind, false);
     });
-    const stopHold = () => { if (mobileHoldAttack === kind) mobileHoldAttack = null; };
-    el.addEventListener('pointerup', stopHold);
-    el.addEventListener('pointercancel', stopHold);
+    el.addEventListener('pointerup', e => { if (e.pointerType !== 'touch') stopHold(); });
+    el.addEventListener('pointercancel', e => { if (e.pointerType !== 'touch') stopHold(); });
   };
   bindHoldAttackBtn('mobBtnAttack', 'any');
   bindHoldAttackBtn('mobBtnMinion', 'minion');
   bindHoldAttackBtn('mobBtnTurret', 'structure');
 
-  // 3. Ability Buttons (Tap for Smart-Aim OR Drag for Skillshot Aiming!)
+  // 3. Ability Buttons (Tap for Smart-Aim OR Drag for Skillshot Aiming — Full Multi-Touch Support!)
   document.querySelectorAll('.mob-ability-btn').forEach(btn => {
-    let startX = 0, startY = 0, isDragging = false, ptrId = null;
+    let startX = 0, startY = 0, isDragging = false, activeId = null;
     const spellKey = btn.dataset.spell;
 
-    btn.addEventListener('pointerdown', e => {
-      e.preventDefault();
-      e.stopPropagation();
-      ensureAudio();
-      try { btn.setPointerCapture(e.pointerId); } catch (_) {}
-      ptrId = e.pointerId;
-      startX = e.clientX; startY = e.clientY;
+    const beginCast = (id, clientX, clientY) => {
+      activeId = id;
+      startX = clientX; startY = clientY;
       isDragging = false;
       const me = getMyChamp();
       if (me) {
         const smart = getSmartAimWorldCoords(me, spellKey);
         mobileAimState = { active: true, spell: spellKey, wx: smart.x, wy: smart.y };
       }
-    });
+    };
 
-    btn.addEventListener('pointermove', e => {
-      if (e.pointerId !== ptrId || !mobileAimState.active) return;
-      const dx = e.clientX - startX;
-      const dy = e.clientY - startY;
+    const moveCast = (id, clientX, clientY) => {
+      if (id !== activeId || !mobileAimState.active) return;
+      const dx = clientX - startX;
+      const dy = clientY - startY;
       if (Math.hypot(dx, dy) > 10) {
         isDragging = true;
         const me = getMyChamp();
@@ -10168,11 +10533,11 @@ function initMobileTouchControls() {
           mobileAimState.wy = clamp(Math.round(me.y + Math.sin(ang) * d), BRIDGE_TOP + 20, BRIDGE_BOT - 20);
         }
       }
-    });
+    };
 
-    const finishCast = (e) => {
-      if (e.pointerId !== ptrId) return;
-      ptrId = null;
+    const finishCastById = (id) => {
+      if (id !== activeId) return;
+      activeId = null;
       const me = getMyChamp();
       let wx = mobileAimState.wx, wy = mobileAimState.wy;
       if (!isDragging && me) {
@@ -10187,8 +10552,59 @@ function initMobileTouchControls() {
       }
     };
 
-    btn.addEventListener('pointerup', finishCast);
-    btn.addEventListener('pointercancel', () => { ptrId = null; mobileAimState.active = false; });
+    btn.addEventListener('touchstart', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      ensureAudio();
+      const t = e.changedTouches[0];
+      if (t) beginCast('t_' + t.identifier, t.clientX, t.clientY);
+    }, { passive: false });
+
+    btn.addEventListener('touchmove', e => {
+      if (!activeId) return;
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const t = e.changedTouches[i];
+        if ('t_' + t.identifier === activeId) {
+          e.preventDefault();
+          moveCast('t_' + t.identifier, t.clientX, t.clientY);
+          break;
+        }
+      }
+    }, { passive: false });
+
+    btn.addEventListener('touchend', e => {
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        const t = e.changedTouches[i];
+        if ('t_' + t.identifier === activeId) {
+          e.preventDefault();
+          finishCastById('t_' + t.identifier);
+          break;
+        }
+      }
+    }, { passive: false });
+
+    btn.addEventListener('touchcancel', () => { activeId = null; mobileAimState.active = false; }, { passive: false });
+
+    btn.addEventListener('pointerdown', e => {
+      if (e.pointerType === 'touch') return;
+      e.preventDefault();
+      e.stopPropagation();
+      ensureAudio();
+      try { btn.setPointerCapture(e.pointerId); } catch (_) {}
+      beginCast(e.pointerId, e.clientX, e.clientY);
+    });
+    btn.addEventListener('pointermove', e => {
+      if (e.pointerType === 'touch') return;
+      moveCast(e.pointerId, e.clientX, e.clientY);
+    });
+    btn.addEventListener('pointerup', e => {
+      if (e.pointerType === 'touch') return;
+      finishCastById(e.pointerId);
+    });
+    btn.addEventListener('pointercancel', e => {
+      if (e.pointerType === 'touch') return;
+      activeId = null; mobileAimState.active = false;
+    });
   });
 }
 
@@ -10355,8 +10771,28 @@ window.addEventListener('pointerdown', e => {
     return;
   }
 
-  // On Mobile Mode, movement & attacks use the Virtual Joystick + Right Thumb Cluster ONLY.
-  if (isMobileMode || e.pointerType === 'touch') return;
+  // On Mobile Mode, tapping directly on an allied Hexgate uses the gate, and tapping an enemy target-locks them!
+  if (isMobileMode) {
+    const p = getMyChamp();
+    if (p && !p.dead && G) {
+      const myTeam = p.team;
+      const myHex = G.hexgates.find(h => h.team === myTeam);
+      if (myHex && dist(pt.x, pt.y, myHex.x, myHex.y) <= myHex.r + 42 && dist(p.x, p.y, myHex.x, myHex.y) <= 340) {
+        dispatchAction({ kind: 'hexgate' });
+        return;
+      }
+      for (const en of G.champions) {
+        if (en.dead || en.team === myTeam || isStealthedFrom(en, myTeam)) continue;
+        if (dist(pt.x, pt.y, en.x, en.y) <= en.r + 30) {
+          dispatchAction({ kind: 'attack_target', targetType: 'champ', targetId: en.idx });
+          clickBeacons.push({ x: en.x, y: en.y, r: 6, maxR: 22, color: '#e84057', life: 0.30 });
+          SFX.attackClick();
+          return;
+        }
+      }
+    }
+    return;
+  }
 
   mouseScreen.x = e.clientX; mouseScreen.y = e.clientY;
   mouseWorld.x = pt.x; mouseWorld.y = pt.y;
@@ -10480,21 +10916,61 @@ window.addEventListener('keydown', e => {
 window.addEventListener('keyup', e => { keysHeld[e.code] = false; });
 
 function resizeCanvas() {
+  if (window.scrollX !== 0 || window.scrollY !== 0) {
+    window.scrollTo(0, 0);
+  }
+  const { w, h } = getViewportDimensions();
   canvas = document.getElementById('gameCanvas');
-  ctx = canvas.getContext('2d');
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-  ctx.imageSmoothingEnabled = false;
+  if (canvas) {
+    ctx = canvas.getContext('2d');
+    canvas.width = w;
+    canvas.height = h;
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    if (ctx) ctx.imageSmoothingEnabled = false;
+  }
   miniCanvas = document.getElementById('minimapCanvas');
-  miniCtx = miniCanvas.getContext('2d');
-  miniCtx.imageSmoothingEnabled = false;
+  if (miniCanvas) {
+    miniCtx = miniCanvas.getContext('2d');
+    if (miniCtx) miniCtx.imageSmoothingEnabled = false;
+  }
   updateWorldZoom();
 }
-window.addEventListener('resize', () => { resizeCanvas(); checkMobileOrientationOverlay(); });
-window.addEventListener('orientationchange', () => { setTimeout(() => { resizeCanvas(); checkMobileOrientationOverlay(); }, 150); });
+
+function scheduleIosViewportSync() {
+  const runSync = () => {
+    if (window.scrollX !== 0 || window.scrollY !== 0) {
+      window.scrollTo(0, 0);
+    }
+    resizeCanvas();
+    checkMobileOrientationOverlay();
+  };
+  runSync();
+  [60, 180, 360, 620].forEach(ms => setTimeout(runSync, ms));
+}
+
+window.addEventListener('resize', scheduleIosViewportSync);
+window.addEventListener('orientationchange', () => {
+  mobileJoy.active = false;
+  mobileJoy.id = null;
+  mobileJoy.dx = 0;
+  mobileJoy.dy = 0;
+  mobileHoldAttack = null;
+  mobileAimState.active = false;
+  scheduleIosViewportSync();
+});
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', scheduleIosViewportSync);
+  window.visualViewport.addEventListener('scroll', () => {
+    if (window.scrollX !== 0 || window.scrollY !== 0) window.scrollTo(0, 0);
+  });
+}
+document.addEventListener('focusout', () => {
+  setTimeout(scheduleIosViewportSync, 80);
+});
 
 window.onload = () => {
-  resizeCanvas();
+  scheduleIosViewportSync();
   for (const sp of Object.values(CHAMP_SPECS)) getRiotImg(sp.squareUrl);
   preloadDDragonAbilityIcons();
   initMobileTouchControls();
@@ -10502,6 +10978,14 @@ window.onload = () => {
   const existingName = getSavedSummonerName();
   if (existingName) {
     syncSummonerNameEverywhere(existingName);
+  }
+  // Auto-select Mobile Mode on iOS / Standalone mobile devices or restore saved preference
+  let savedDev = '';
+  try { savedDev = localStorage.getItem('aram_mayhem_device') || ''; } catch (e) {}
+  if (IS_IOS || (IS_STANDALONE && detectTrueMobileDevice()) || savedDev === 'mobile') {
+    selectInitialDevice('mobile');
+  } else if (savedDev === 'pc') {
+    selectInitialDevice('pc');
   }
   renderLobby();
   connectLanServer();
